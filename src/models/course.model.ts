@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import type { Course ,chapter} from "../types/courses.type.js";
+import type { Course ,chapter,enrollment} from "../types/courses.type.js";
 
 
 const courseSchema = new mongoose.Schema<Course>({
@@ -55,6 +55,20 @@ const chapterSchema = new mongoose.Schema<chapter>({
     }
 });
 
+const enrollmentSchema = new mongoose.Schema<enrollment>({
+    courseId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course',
+        required: true
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    }
+});
+
 const Chaptermodel = mongoose.model('Chapter', chapterSchema);
 const Coursemodel = mongoose.model('Course', courseSchema);
-export { Coursemodel, Chaptermodel };
+const Enrollmentmodel = mongoose.model('Enrollment', enrollmentSchema);
+export { Coursemodel, Chaptermodel, Enrollmentmodel };
