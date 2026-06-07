@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { createCourseController } from "../controller/course.controller.js";
+import { createChapterController, createCourseController } from "../controller/course.controller.js";
 
 const courseRouter = Router();
 
 courseRouter.post("/", createCourseController);
+courseRouter.post("/chapter", createChapterController);
 
 export default courseRouter;

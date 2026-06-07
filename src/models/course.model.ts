@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import type { Course } from "../types/courses.type.js";
+import type { Course ,chapter} from "../types/courses.type.js";
 
 
 const courseSchema = new mongoose.Schema<Course>({
@@ -34,5 +34,27 @@ level: {
 }, {
     timestamps: true,
   });
+
+const chapterSchema = new mongoose.Schema<chapter>({
+    courseId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course',
+        required: true
+    },
+    title: {
+        type: String,
+        required: true
+    },
+    description: {
+        type: String,
+        required: true
+    },
+    videoUrl: {
+        type: String,
+        required: true
+    }
+});
+
+const Chaptermodel = mongoose.model('Chapter', chapterSchema);
 const Coursemodel = mongoose.model('Course', courseSchema);
-export default Coursemodel;
+export { Coursemodel, Chaptermodel };
