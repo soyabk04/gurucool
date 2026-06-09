@@ -1,5 +1,6 @@
-import Usermodel from "../models/user.model.js";
+import {Usermodel } from "../models/user.model.js";
 import {comparepass, hashpass}  from "../misc/passwordhash.js";
+import {generateOTP} from "../misc/otpgenerator.js";
 
 export const createUser = async (userData: any) => {
   try {
@@ -10,7 +11,8 @@ export const createUser = async (userData: any) => {
     userData.password = hashedPassword;
     const user = new Usermodel(userData);
     await user.save();
-    return user;
+    const otp = await generateOTP(user._id);
+    return otp;
   } catch (error: any) {
     throw new Error(`Error creating user: ${error.message}`);
   }

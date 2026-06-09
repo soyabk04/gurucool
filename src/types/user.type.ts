@@ -6,5 +6,6 @@ export interface User {
     password: string;
     role: 'user' | 'superadmin' | 'admin' | 'coordinator';
     organization?: mongoose.Schema.Types.ObjectId;
+    otpverified?:boolean;
 }
 
