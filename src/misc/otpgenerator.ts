@@ -1,10 +1,16 @@
-import mongoose from "mongoose";
-import {Otpmodel} from "../models/user.model.js";
+import {sendmail} from "./sendemail.js";
+import {Otpmodel,Usermodel} from "../models/user.model.js";
 
-function generateOTP(userId: any):unknown {
+
+async function generateOTP(userId: any) {
     const otp =Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+    let user=await Usermodel.findById(userId);
+    if(!user){
+        throw new Error("User not found");
+    }
+    await sendmail("Your OTP for account verification", `Your OTP is: ${otp}`, user.email);
     const otpEntry = new Otpmodel({ userId, otp });
-    otpEntry.save();
+    await otpEntry.save();
     return otp;
 }
 export {generateOTP};

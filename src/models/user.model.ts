@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { type User } from "../types/user.type.js";
+import { type Otp, type User } from "../types/user.type.js";
 
 const userSchema = new mongoose.Schema<User>({
     name: {
@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema<User>({
 
 },{timestamps: true});
 
-const otpSchema = new mongoose.Schema({
+const otpSchema = new mongoose.Schema<Otp>({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -39,7 +39,8 @@ const otpSchema = new mongoose.Schema({
         type: Number,
         required: true
     }
-},{ expireAfterSeconds: 3600 });
+});
+otpSchema.index({ createdAt: 1 }, { expireAfterSeconds: 3600 });
 
 const Otpmodel = mongoose.model('Otp', otpSchema);
 const Usermodel = mongoose.model('User', userSchema);

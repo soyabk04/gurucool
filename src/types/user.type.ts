@@ -9,3 +9,7 @@ export interface User {
     otpverified?:boolean;
 }
 
+export interface Otp {
+    userId: mongoose.Types.ObjectId;
+    otp: number;
+}

@@ -1,7 +1,8 @@
 import { createUser } from "../services/user.service.js";
-import { userlogin } from "../services/user.service.js";
+import { userlogin ,verifyUser} from "../services/user.service.js";
 import { type Request, type Response } from "express";
 import {generateToken,generateAccessToken} from "../misc/jwtToken.js";
+import {sendmail} from "../misc/sendemail.js";
 
  const createUserController = async (req: Request, res: Response) => {
   try {
@@ -44,4 +45,16 @@ const generateAccessTokenController = async (req: Request, res: Response) => {
   return res.status(200).json({ accessToken: token });
 }
 
-export { createUserController, userLoginController, generateAccessTokenController };
+const otpVerificationController = async (req: Request, res: Response) => {
+  try {
+   
+    const { userId, otp } = req.body;
+    // console.log(otp)
+    const result = await verifyUser(userId, otp);
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: `${error.message}` });
+  }
+}
+
+export { createUserController, userLoginController, generateAccessTokenController, otpVerificationController };
