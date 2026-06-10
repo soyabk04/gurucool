@@ -2,7 +2,7 @@ import { createUser } from "../services/user.service.js";
 import { userlogin ,verifyUser} from "../services/user.service.js";
 import { type Request, type Response } from "express";
 import {generateToken,generateAccessToken} from "../misc/jwtToken.js";
-import {sendmail} from "../misc/sendemail.js";
+
 
  const createUserController = async (req: Request, res: Response) => {
   try {
@@ -56,5 +56,20 @@ const otpVerificationController = async (req: Request, res: Response) => {
     res.status(500).json({ message: `${error.message}` });
   }
 }
+export const logoutUser = async (req: Request, res: Response) => {
+  try {
+      res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  });
+
+  return res.status(200).json({
+    message: "Logged out successfully",
+  });
+  } catch (error: any) {
+    throw new Error(`Error logging out: ${error.message}`);
+  }
+};
 
 export { createUserController, userLoginController, generateAccessTokenController, otpVerificationController };

@@ -11,6 +11,6 @@ async function generateOTP(userId: any) {
     await sendmail("Your OTP for account verification", `Your OTP is: ${otp}`, user.email);
     const otpEntry = new Otpmodel({ userId, otp });
     await otpEntry.save();
-    return otp;
+    return {message:`OTP sent to ${user.email}`};
 }
 export {generateOTP};

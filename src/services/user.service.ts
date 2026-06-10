@@ -34,9 +34,10 @@ export const userlogin = async (email: string, password: string) => {
     throw new Error(`Error logging in: ${error.message}`);
   }
 }
+
 export const verifyUser = async (userId: string, otp: string) => {
   try {
-    
+
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       throw new Error("Invalid user ID");
     }
