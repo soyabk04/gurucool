@@ -6,8 +6,10 @@ import {generateToken,generateAccessToken} from "../misc/jwtToken.js";
 
  const createUserController = async (req: Request, res: Response) => {
   try {
-    const userData = req.body;
-    const user = await createUser(userData);
+    const userData = req.body.users;
+    const userInfo=req.body.userInfo;
+    const failedUser=req.body.failedUser;
+    const user = await createUser(userData,userInfo,failedUser);
 
     res.status(201).json(user);
   } catch (error: any) {

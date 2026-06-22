@@ -5,8 +5,9 @@ const userSignupValidator =(req: Request, res: Response, next: NextFunction) => 
     const userSchema = z.object({
         name: z.string().min(1, "Name is required"),
         email: z.string().email(),
-        password: z.string().min(6, "Password must be at least 6 characters long"),
+        password: z.string().min(6, "Password must be at least 6 characters long").optional(),
         role: z.enum(['user', 'superadmin', 'admin', 'coordinator']),
+        ID: z.string(),
         organization: z
     .string()
     .refine(
@@ -17,14 +18,18 @@ const userSignupValidator =(req: Request, res: Response, next: NextFunction) => 
     .optional()
 
     });
-    const validationResult = userSchema.safeParse(req.body);
+    let validUser = [];
+    let failedUser= [];
+    for(const user of req.body.users)
+    {    const validationResult = userSchema.safeParse(user);
     if (!validationResult.success) {
         const errorMessages = validationResult.error.issues.map(issue => issue.message).join(", ");
-            return res.status(400).send({
-                error: errorMessages
-            })
+        failedUser.push({user, error: errorMessages});
+        continue;
     }
-    req.body = validationResult.data;
+     validUser.push(validationResult.data);}
+    req.body.users = validUser;
+    req.body.failedUser=failedUser;
     next();
 }
 const userSigninValidator =(req: Request, res: Response, next: NextFunction) => {
