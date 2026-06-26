@@ -3,6 +3,7 @@ import { userlogin, verifyUser } from "../services/user.service.js";
 import { type Request, type Response } from "express";
 import { generateToken, generateAccessToken } from "../misc/jwtToken.js";
 import jwt from "jsonwebtoken";
+import { ATJWTKEY } from "../config/env.config.js";
 
 const createUserController = async (req: Request, res: Response) => {
   try {
@@ -26,7 +27,7 @@ const getUsersController = async (req: Request, res: Response) => {
       throw new Error("Invalid token");
     }
 
-    const userdata = jwt.verify(token, "secretKey") as {
+    const userdata = jwt.verify(token, ATJWTKEY) as {
       userId: string;
       role: "user" | "admin" | "superadmin" | "coordinator";
     }
@@ -66,7 +67,6 @@ const userLoginController = async (req: Request, res: Response) => {
       ;;
   } catch (error: any) {
     res.status(500).json({ message: `${error.message}` });
-    console.log(error.message)
   }
 };
 
@@ -93,7 +93,7 @@ const otpVerificationController = async (req: Request, res: Response) => {
     res.status(500).json({ message: `${error.message}` });
   }
 }
-export const logoutUser = async (req: Request, res: Response) => {
+const logoutUser = async (req: Request, res: Response) => {
   try {
     res.clearCookie("refreshToken", {
       httpOnly: true,
@@ -109,7 +109,7 @@ export const logoutUser = async (req: Request, res: Response) => {
     throw new Error(`Error logging out: ${error.message}`);
   }
 };
-export const checkLoginController = (req: Request, res: Response) => {
+const checkLoginController = (req: Request, res: Response) => {
   try {
     const accesstoken = req.headers.accesstoken;
     if (!accesstoken || Array.isArray(accesstoken)) {
@@ -122,4 +122,7 @@ export const checkLoginController = (req: Request, res: Response) => {
   }
 }
 
-export { createUserController, userLoginController, generateAccessTokenController, otpVerificationController, getUsersController };
+export { 
+  createUserController, userLoginController, generateAccessTokenController,
+   otpVerificationController, getUsersController,logoutUser,checkLoginController
+   };

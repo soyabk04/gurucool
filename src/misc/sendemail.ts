@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { gmailId,gmailPass } from "../config/env.config.js";
 // Create a transporter using SMTP
 export const sendmail=async (subject:string, message:string,recipient:string)=>{
 const transporter = nodemailer.createTransport({
@@ -6,8 +7,8 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true, // use SSL (upgrade connection to SSL after connecting)
   auth: {
-    user: process.env.GMAILID ,
-    pass: process.env.GMAILPASS,
+    user: gmailId ,
+    pass: gmailPass,
   },
 });
 
