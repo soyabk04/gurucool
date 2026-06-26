@@ -2,7 +2,8 @@ import mongoose from "mongoose";
 
 export const dbConnect=async()=>{
 try{    
-    await mongoose.connect("mongodb://admin:password@localhost:27017/mydb?authSource=admin");
+    const mongourl=process.env.MONGOURL!
+    await mongoose.connect(mongourl);
     console.log("Database connected successfully");}
 catch(error:any){
     console.error("Database connection error: " + error.message);
