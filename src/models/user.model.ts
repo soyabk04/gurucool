@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema<User>({
         type: String,
         required: true
     },
+    groupId:{
+        type:String,
+required: false
+    },
     role:{ type: String, 
         enum: ['user', 'superadmin','admin','coordinator'],
         default: 'user' },

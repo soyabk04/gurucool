@@ -1,22 +1,27 @@
-import mongoose from "mongoose";
+import { Types } from "mongoose";
+import { type Request } from "express";
 
 export interface User {
     name: string;
     email: string;
-    ID:string;
+    ID: string;
     password: string;
-    role: 'user' | 'superadmin' | 'admin' | 'coordinator';
-    organization?: mongoose.Schema.Types.ObjectId;
-    otpverified?:boolean;
+    role: "user" | "superadmin" | "admin" | "coordinator";
+
+    organization?: Types.ObjectId;
+    groupId?: Types.ObjectId;
+
+    otpverified?: boolean;
 }
 
 export interface Otp {
-    userId: mongoose.Types.ObjectId;
+    userId: Types.ObjectId;
     otp: number;
 }
-export interface rolesrequest extends Request {
+
+export interface RolesRequest extends Request {
     user?: {
         userId: string;
-        role: string;
+        role: "user" | "superadmin" | "admin" | "coordinator";
     };
 }

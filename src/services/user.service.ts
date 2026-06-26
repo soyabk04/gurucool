@@ -4,6 +4,7 @@ import { generateOTP } from "../misc/otpgenerator.js";
 import mongoose from "mongoose";
 import { generatePassword } from "../misc/passwordGenerator.js";
 import { sendWelcomeEmail } from "../misc/sendemail.js";
+import  jwt  from "jsonwebtoken"; 
 
 export const createUser = async (users: any[], userInfo: any, failedUsers: any[]) => {
   try {
@@ -37,8 +38,9 @@ export const createUser = async (users: any[], userInfo: any, failedUsers: any[]
         if (!userData.password) {
           userData.password = generatePassword();
         }
+        let pass=userData.password
         userData.password = await hashpass(
-          userData.password
+          pass
         );
 
         const newUser = new Usermodel({ ...userData, createdBy: userInfo.userId });
@@ -48,7 +50,7 @@ export const createUser = async (users: any[], userInfo: any, failedUsers: any[]
         if (!organization?.name) {
           throw new Error("Organization not found");
         }
-        await sendWelcomeEmail(newUser, userData.password, organization.name)
+        await sendWelcomeEmail(newUser, pass, organization.name)
 
         createdUsers.push(newUser);
       } catch (error: any) {
@@ -79,12 +81,61 @@ export const userlogin = async (email: string, password: string) => {
     if (!isMatch) {
       throw new Error("Invalid password");
     }
-    return { message: "Login successful", user: user };
+    return { message: "Login successful", user:user};
 
   } catch (error: any) {
     throw new Error(`Error logging in: ${error.message}`);
   }
 }
+
+export const getUsers = async (userInfo: {
+  userId: string;
+  role: string;
+}) => {
+  if (userInfo.role === "superadmin") {
+    return {
+      success: true,
+      users: await Usermodel.find().select("-password"),
+    };
+  }
+
+  const currentUser = await Usermodel.findById(
+    userInfo.userId,
+    "organization groupId"
+  );
+
+  if (!currentUser) {
+    throw new Error("User not found");
+  }
+
+  if (userInfo.role === "admin") {
+    if (!currentUser.organization) {
+      throw new Error("Organization not found");
+    }
+
+    return {
+      success: true,
+      users: await Usermodel.find({
+        organization: currentUser.organization,
+      }).select("-password"),
+    };
+  }
+
+  if (userInfo.role === "coordinator") {
+    if (!currentUser.groupId) {
+      throw new Error("Group not found");
+    }
+
+    return {
+      success: true,
+      users: await Usermodel.find({
+        groupId: currentUser.groupId,
+      }).select("-password"),
+    };
+  }
+
+  throw new Error("Unauthorized");
+};
 
 export const verifyUser = async (userId: string, otp: string) => {
   try {
@@ -139,3 +190,15 @@ export const getUserRole = async (userId: string) => {
     throw new Error(`Error fetching user role: ${error.message}`);
   }
 };
+export const checkLogin = async (accesstoken:string)=>{
+    try{
+      const token =jwt.verify(accesstoken,"secretKey")
+          if (token){
+        return ({success:true,message:"user is logged in"})
+      }
+    }
+
+    catch(error:any){
+      throw new Error(`Error logging in: ${error.message}`);
+    }
+}

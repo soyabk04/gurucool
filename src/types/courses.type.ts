@@ -22,12 +22,5 @@ export interface enrollment{
     courseId: mongoose.Schema.Types.ObjectId;
     userId: mongoose.Schema.Types.ObjectId;
     enrollmentDate: Date;
-    progress: number; // Progress percentage
 }
 
-export interface orgpurchase{
-    organizationId: mongoose.Schema.Types.ObjectId;
-    courseId: mongoose.Schema.Types.ObjectId;
-    purchaseDate: Date;
-    amount: number;
-}
