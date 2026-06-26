@@ -2,6 +2,7 @@ import { Router } from "express";
 import  {createUserController,generateAccessTokenController,otpVerificationController,userLoginController,logoutUser, getUsersController,checkLoginController}  from "../controller/user.controller.js";
 import {userSigninValidator, userSignupValidator} from "../validator/users.validator.js";
 import { authorizeRoles, isloggedIn, notloggedIn,authMiddleware, authlogin } from "../middleware/auth.middleware.js";
+import { type Request, type Response } from "express";
 
 const userRouter = Router();
 
@@ -15,6 +16,12 @@ userRouter.get("/isloggedin", authlogin, (req, res) => {
     user: req.body,
   });
 });
+userRouter.get("/",(req:Request,res:Response)=>{
+       res.send({
+        message:"welcome to guruCool"
+        ,success:true
+       })
+})
 userRouter.post("/logout", isloggedIn, logoutUser);
 
 userRouter.get("/getusers",getUsersController);
