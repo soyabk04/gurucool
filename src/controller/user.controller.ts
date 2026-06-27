@@ -20,9 +20,36 @@ const createUserController = async (req: Request, res: Response) => {
     res.status(500).json({ message: `${error.message}` });
   }
 };
+// const getUsersController = async (req: Request, res: Response) => {
+//   try {
+//     const token = req.headers.accesstoken;
+//     if (!token || Array.isArray(token)) {
+//       throw new Error("Invalid token");
+//     }
+
+//     const userdata = jwt.verify(token, ATJWTKEY) as {
+//       userId: string;
+//       role: "user" | "admin" | "superadmin" | "coordinator";
+//     }
+//     const userInfo = {
+//       role: userdata.role,
+//       userId: userdata.userId
+
+//     }
+
+//     const users = await getUsers(userInfo);
+
+//     res.status(201).json({
+//       success: true
+//       , users
+//     });
+//   } catch (error: any) {
+//     res.status(500).json({ message: `${error.message}` });
+//   }
+// };
+
 const getUsersController = async (req: Request, res: Response) => {
-  try {
-    const token = req.headers.accesstoken;
+      const token = req.headers.accesstoken;
     if (!token || Array.isArray(token)) {
       throw new Error("Invalid token");
     }
@@ -36,16 +63,12 @@ const getUsersController = async (req: Request, res: Response) => {
       userId: userdata.userId
 
     }
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
 
-    const users = await getUsers(userInfo);
+  const result = await getUsers(userInfo, page, limit);
 
-    res.status(201).json({
-      success: true
-      , users
-    });
-  } catch (error: any) {
-    res.status(500).json({ message: `${error.message}` });
-  }
+  res.status(200).json(result);
 };
 
 const userLoginController = async (req: Request, res: Response) => {

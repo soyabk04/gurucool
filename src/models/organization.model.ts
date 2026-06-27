@@ -27,7 +27,7 @@ const organizationSchema = new mongoose.Schema<organization>({
     },
     adminUserId: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true
+        required: false
     }
 })
 

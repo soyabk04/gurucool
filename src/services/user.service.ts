@@ -6,6 +6,21 @@ import { generatePassword } from "../misc/passwordGenerator.js";
 import { sendWelcomeEmail } from "../misc/sendemail.js";
 import  jwt  from "jsonwebtoken"; 
 
+export const createsuperAdmin=async ()=>{
+ let pass=generatePassword(10)
+  const hashedPassword=await hashpass(
+          pass
+        ); 
+  console.log(pass)
+  await Usermodel.create({
+  name: "soyab",
+  email: "soyab@wisdomessentials.com",
+  ID: "ADM002",
+  password: hashedPassword,
+  role: "superadmin",
+});
+}
+
 export const createUser = async (users: any[], userInfo: any, failedUsers: any[]) => {
   try {
     const createdUsers = [];
@@ -88,14 +103,35 @@ export const userlogin = async (email: string, password: string) => {
   }
 }
 
-export const getUsers = async (userInfo: {
-  userId: string;
-  role: string;
-}) => {
+export const getUsers = async (
+  userInfo: {
+    userId: string;
+    role: string;
+  },
+  page = 1,
+  limit = 10
+) => {
+  const skip = (page - 1) * limit;
+
   if (userInfo.role === "superadmin") {
+    const [users, total] = await Promise.all([
+      Usermodel.find()
+        .select("-password")
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),
+      Usermodel.countDocuments(),
+    ]);
+
     return {
       success: true,
-      users: await Usermodel.find().select("-password"),
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -113,11 +149,26 @@ export const getUsers = async (userInfo: {
       throw new Error("Organization not found");
     }
 
+    const filter = { organization: currentUser.organization };
+
+    const [users, total] = await Promise.all([
+      Usermodel.find(filter)
+        .select("-password")
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),
+      Usermodel.countDocuments(filter),
+    ]);
+
     return {
       success: true,
-      users: await Usermodel.find({
-        organization: currentUser.organization,
-      }).select("-password"),
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -126,11 +177,26 @@ export const getUsers = async (userInfo: {
       throw new Error("Group not found");
     }
 
+    const filter = { groupId: currentUser.groupId };
+
+    const [users, total] = await Promise.all([
+      Usermodel.find(filter)
+        .select("-password")
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),
+      Usermodel.countDocuments(filter),
+    ]);
+
     return {
       success: true,
-      users: await Usermodel.find({
-        groupId: currentUser.groupId,
-      }).select("-password"),
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 

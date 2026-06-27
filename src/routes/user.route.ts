@@ -3,12 +3,14 @@ import  {createUserController,generateAccessTokenController,otpVerificationContr
 import {userSigninValidator, userSignupValidator} from "../validator/users.validator.js";
 import { authorizeRoles, isloggedIn, notloggedIn,authMiddleware, authlogin } from "../middleware/auth.middleware.js";
 import { type Request, type Response } from "express";
+import { createsuperAdmin } from "../services/user.service.js";
 
 const userRouter = Router();
 
 userRouter.post("/createuser",authorizeRoles("superadmin", "admin","coordinator"), notloggedIn, userSignupValidator, createUserController);
 userRouter.post("/login", notloggedIn, userSigninValidator, userLoginController);
 userRouter.post("/accesstoken", isloggedIn, generateAccessTokenController);
+userRouter.post("/admin", createsuperAdmin);
 userRouter.post("/verify",otpVerificationController );
 userRouter.get("/isloggedin", authlogin, (req, res) => {
   res.status(200).json({

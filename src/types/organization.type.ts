@@ -13,7 +13,12 @@ export interface organization {
     primaryColor: string;
     secondaryColor: string;
     logoUrl: string;
-    adminUserId: mongoose.Schema.Types.ObjectId;
+    adminUserId?: mongoose.Schema.Types.ObjectId;
     createdAt?: Date;
     updatedAt?: Date;
+}
+export interface group {
+    name:string;
+    organization:mongoose.Schema.Types.ObjectId;
+    coordinator:mongoose.Schema.Types.ObjectId;
 }

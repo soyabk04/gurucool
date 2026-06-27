@@ -3,7 +3,7 @@ import { type Request, type Response } from "express";
 
 const createOrganizationController = async (req: Request, res: Response) => {
     try {
-        const orgData = req.body;
+        const orgData = req.body.validOrg;
         const organization = await createOrganizationService(orgData);
         res.status(201).json(organization);
     } catch (error: any) {

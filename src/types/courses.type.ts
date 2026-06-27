@@ -1,10 +1,10 @@
-import mongoose from 'mongoose';
+import {Types} from 'mongoose';
 
 export interface Course {
     title: string;
     description: string;
     thumbnail: string;
-    instructor: mongoose.Schema.Types.ObjectId; // Reference to User model
+    instructor: Types.ObjectId; // Reference to User model
     price: number; //
     category: string;
     level: 'beginner' | 'intermediate' | 'advanced';
@@ -12,15 +12,35 @@ export interface Course {
     updatedAt?: Date;
 }
 export interface chapter{
-    courseId: mongoose.Schema.Types.ObjectId;
+    courseId: Types.ObjectId;
     title: string;
     description: string;
     videoUrl: string;
     duration: number; // Duration in minutes
 }
 export interface enrollment{
-    courseId: mongoose.Schema.Types.ObjectId;
-    userId: mongoose.Schema.Types.ObjectId;
+    courseId: Types.ObjectId;
+    userId: Types.ObjectId;
     enrollmentDate: Date;
+}
+export interface Quiz {
+  chapterId: Types.ObjectId;
+  passingMarks: number;
+  totalMarks: number;
+}
+export interface Question {
+  quizId: Types.ObjectId;
+  question: string;
+  options: string[];
+  answer: string;
+  marks: number;
+}
+
+export interface CourseProgress {
+  userId: Types.ObjectId;
+  courseId: Types.ObjectId;
+  chapterId: Types.ObjectId;
+  watchedDuration: number;
+  completed: boolean;
 }
 

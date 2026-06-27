@@ -1,5 +1,6 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { ATJWTKEY } from "../config/env.config.js";
 const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -48,7 +49,7 @@ const authorizeRoles = (...roles: string[]) => {
     try {
       const user = jwt.verify(
         roletoken,
-        "secretKey"
+        ATJWTKEY
       ) as {
         userId: string;
         role: string;
@@ -62,10 +63,11 @@ const authorizeRoles = (...roles: string[]) => {
       }
         req.body.userInfo=user;
       next();
-    } catch (error) {
+    } catch (error:any) {
       return res.status(401).json({
         success:false,
         message: "Invalid token",
+        error:error.message
       });
     }
   };
