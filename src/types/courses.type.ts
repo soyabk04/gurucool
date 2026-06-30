@@ -9,7 +9,7 @@ export interface Course {
     createdAt?: Date;
     updatedAt?: Date;
 }
-export interface chapter{
+export interface Chapter{
     serialNo:number;
     courseId: Types.ObjectId;
     title: string;
@@ -17,7 +17,7 @@ export interface chapter{
     videoUrl: string;
     duration: number; // Duration in minutes
 }
-export interface courseAssignment{
+export interface CourseAssignment{
     courseId: Types.ObjectId;
     userId: Types.ObjectId;
     enrollmentDate: Date;

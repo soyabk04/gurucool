@@ -55,6 +55,20 @@ const questionSchema = z.object({
         .int()
         .positive("Marks must be greater than 0"),
 });
+const courseProgressSchema = z.object({
+  userId: objectIdSchema,
+
+  courseId: objectIdSchema,
+
+  chapterId: objectIdSchema,
+
+  watchedDuration: z
+    .number()
+    .int()
+    .nonnegative("Watched duration cannot be negative"),
+
+  completed: z.boolean(),
+});
 
 export const validate =
     (schema: z.ZodType, key: string) =>
@@ -73,6 +87,11 @@ export const validate =
             next();
         };
 
+const courseProgressValidator = validate(
+  courseProgressSchema,
+  "validCourseProgress"
+);
+
 const courseValidator =
     validate(courseSchema, "validCourse");
 
@@ -86,4 +105,4 @@ const quizValidator =
 
 const questionValidator =
     validate(questionSchema, "validQuestion");
-export { courseValidator, chapterValidator, Assignmentvalidator, quizValidator, questionValidator };
+export { courseValidator, chapterValidator,courseProgressValidator, Assignmentvalidator, quizValidator, questionValidator };
