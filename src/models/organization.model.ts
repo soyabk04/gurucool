@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import type { organization, orgPurchase } from '../types/organization.type.js'
+import type { group, organization, orgPurchase } from '../types/organization.type.js'
 
 const organizationSchema = new mongoose.Schema<organization>({
     name: {
@@ -30,6 +30,14 @@ const organizationSchema = new mongoose.Schema<organization>({
         required: false
     }
 })
+const groupSchema = new mongoose.Schema<group>({
+     name:{
+        type:String,
+        organization:mongoose.Types.ObjectId,
+        coordinator:mongoose.Types.ObjectId
+
+     }
+})
 
 const orgPurchaseSchema = new mongoose.Schema<orgPurchase>({
     organizationId: {
@@ -53,4 +61,5 @@ const orgPurchaseSchema = new mongoose.Schema<orgPurchase>({
 
 const Organizationmodel = mongoose.model('Organization', organizationSchema);
 const OrgPurchasemodel = mongoose.model('OrgPurchase', orgPurchaseSchema);
-export { Organizationmodel, OrgPurchasemodel };
+const Groupmodel= mongoose.model('group',groupSchema)
+export { Organizationmodel, OrgPurchasemodel,Groupmodel };

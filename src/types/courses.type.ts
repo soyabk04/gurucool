@@ -5,28 +5,27 @@ export interface Course {
     description: string;
     thumbnail: string;
     instructor: Types.ObjectId; // Reference to User model
-    price: number; //
-    category: string;
-    level: 'beginner' | 'intermediate' | 'advanced';
+    price: number;
     createdAt?: Date;
     updatedAt?: Date;
 }
 export interface chapter{
+    serialNo:number;
     courseId: Types.ObjectId;
     title: string;
     description: string;
     videoUrl: string;
     duration: number; // Duration in minutes
 }
-export interface enrollment{
+export interface courseAssignment{
     courseId: Types.ObjectId;
     userId: Types.ObjectId;
     enrollmentDate: Date;
 }
 export interface Quiz {
   chapterId: Types.ObjectId;
-  passingMarks: number;
-  totalMarks: number;
+  passingMarks?: number;
+  totalMarks?: number;
 }
 export interface Question {
   quizId: Types.ObjectId;

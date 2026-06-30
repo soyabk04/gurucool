@@ -1,6 +1,7 @@
 import {z} from "zod";
 import mongoose from "mongoose";
 import {type Request, type Response, type NextFunction} from "express";
+console.log(1)
 const userSignupValidator =(req: Request, res: Response, next: NextFunction) => {
     const userSchema = z.object({
         name: z.string().min(1, "Name is required"),

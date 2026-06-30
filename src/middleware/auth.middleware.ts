@@ -21,7 +21,7 @@ const isloggedIn = (req: Request, res: Response, next: NextFunction) => {
 }
 
 const notloggedIn = (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.acesstoken;
+    const authHeader = req.headers.accesstoken;
 
     if (authHeader) {
         return res.status(401).json({ succcess:false,message: "Already logged in" });
@@ -87,7 +87,7 @@ export const authlogin = (
   }
 
   try {
-    const decoded = jwt.verify(token, "secretKey");
+    const decoded = jwt.verify(token, ATJWTKEY);
     req.body = decoded;
     next();
   } catch {

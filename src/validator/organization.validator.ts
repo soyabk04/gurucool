@@ -1,6 +1,7 @@
 import {z} from "zod"
 import type { Request,Response,NextFunction } from "express"
 import mongoose from "mongoose"
+import { validate } from "./courses.validator.js";
 
 const orgSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -10,27 +11,25 @@ const orgSchema = z.object({
   logoUrl: z.string().url("Invalid logo URL"),
 });
 
-export const organizationValidator = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const validationResult = orgSchema.safeParse(req.body);
+const grpSchema=z.object({
+  name:z.string().min(1),
+  organization:z
+      .string()
+      .refine(
+        (id) => mongoose.Types.ObjectId.isValid(id),
+        "Invalid organization id"
+      )
+      .transform((id) => new mongoose.Types.ObjectId(id)),
+  coordinator:z
+      .string()
+      .refine(
+        (id) => mongoose.Types.ObjectId.isValid(id),
+        "Invalid group id"
+      )
+      .transform((id) => new mongoose.Types.ObjectId(id))
+})
 
-  if (!validationResult.success) {
-    const errorMessages = validationResult.error.issues.map(
-      (issue) => issue.message
-    );
+const organizationValidator=validate(orgSchema,'validOrg')
+const groupValidator=validate(grpSchema,'validGrp')
 
-    return res.status(400).json({
-      success: false,
-      errors: errorMessages,
-      err:validationResult.error.issues
-
-    });
-  }
-
-  req.body.validOrg = validationResult.data;
-
-  next();
-};
+export {organizationValidator,groupValidator}
