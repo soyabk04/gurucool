@@ -20,8 +20,9 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies
-app.use((req:Request, res:Response, next:NextFunction) => {
+app.use('/host',(req:Request, res:Response, next:NextFunction) => {
     const host = req.hostname;
+
     console.log(host);
     next();
 });
