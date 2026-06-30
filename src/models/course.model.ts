@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import type { Course ,chapter,enrollment} from "../types/courses.type.js";
+import type { Course ,chapter,courseAssignment} from "../types/courses.type.js";
 
 
 const courseSchema = new mongoose.Schema<Course>({
@@ -22,15 +22,7 @@ const courseSchema = new mongoose.Schema<Course>({
         type: Number,
         required: true
     },
-    category: {
-        type: String,
-        required: true
-},
-level: {
-    type: String,
-    enum: ['beginner', 'intermediate', 'advanced'],
-    required: true
-}, 
+ 
 }, {
     timestamps: true,
   });
@@ -55,7 +47,7 @@ const chapterSchema = new mongoose.Schema<chapter>({
     }
 });
 
-const enrollmentSchema = new mongoose.Schema<enrollment>({
+const enrollmentSchema = new mongoose.Schema<courseAssignment>({
     courseId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Course',
