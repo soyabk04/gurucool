@@ -1,4 +1,5 @@
-import {ChapterModel, CourseModel,QuestionModel,QuizModel,CourseProgressModel} from "../models/course.model.js";
+import {ChapterModel, CourseModel,QuestionModel,QuizModel,CourseProgressModel,EnrollmentModel} from "../models/course.model.js";
+import type { CourseAssignment } from "../types/courses.type.js";
 
 export const createCourse = async (courseData: any) => {
     try {
@@ -38,4 +39,21 @@ export const createQuiz = async (chapterData: any) => {
     } catch (error) {
         throw new Error('Error creating chapter');
     }
+};
+
+export const createEnrollment = async (
+  enrollData: CourseAssignment
+) => {
+  try {
+    const enrollment = new EnrollmentModel(enrollData);
+    await enrollment.save();
+    console.log(enrollment)
+    return enrollment;
+  } catch (error: any) {
+    if (error.code === 11000) {
+      throw new Error("User is already enrolled in this course.");
+    }
+
+    throw error;
+  }
 };

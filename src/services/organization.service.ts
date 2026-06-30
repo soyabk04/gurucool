@@ -1,4 +1,5 @@
-import {Organizationmodel,OrgPurchasemodel} from "../models/organization.model.js";
+import { EnrollmentModel } from "../models/course.model.js";
+import {Groupmodel, Organizationmodel,OrgPurchasemodel} from "../models/organization.model.js";
 import type { organization, orgPurchase } from "../types/organization.type.js";
 
 const createOrganizationService = async (orgData: organization) => {
@@ -11,15 +12,18 @@ const createOrganizationService = async (orgData: organization) => {
     }
 };
 
-const createOrgPurchaseService = async (purchaseData: orgPurchase) => {
+const createGroupService = async (grpData: organization) => {
     try {
-        const purchase = new OrgPurchasemodel(purchaseData);
-        await purchase.save();
-        return purchase;
+        const group = new Groupmodel(grpData);
+        await group.save();
+        return group;
     } catch (error:any) {
-        throw new Error('Error processing purchase');
+        throw new Error('Error creating organization');
     }
 };
 
 
-export { createOrganizationService, createOrgPurchaseService };
+
+
+
+export { createOrganizationService, createGroupService};

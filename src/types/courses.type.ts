@@ -15,7 +15,7 @@ export interface Chapter{
     title: string;
     description: string;
     videoUrl: string;
-    duration: number; // Duration in minutes
+    duration: number; 
 }
 export interface CourseAssignment{
     courseId: Types.ObjectId;

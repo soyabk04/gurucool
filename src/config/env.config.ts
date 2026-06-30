@@ -14,6 +14,7 @@ function getEnv(name: string): string {
 
 export const gmailId = getEnv("GMAILID");
 export const port = getEnv("PORT");
+export const version = getEnv("VERSION");
 export const gmailPass = getEnv("GMAILPASS");
 export const mongoUrl = getEnv("MONGOURL");
 export const ATJWTKEY = getEnv("ATJWTKEY");

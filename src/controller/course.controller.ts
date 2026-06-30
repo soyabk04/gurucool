@@ -1,4 +1,4 @@
-import { createChapter, createCourse ,createQuestion,createQuiz} from "../services/course.service.js";
+import { createChapter, createCourse ,createEnrollment,createQuestion,createQuiz} from "../services/course.service.js";
 import { type Request, type Response } from "express";
 
 export const createCourseController = async (req: Request, res: Response) => {
@@ -33,6 +33,17 @@ export const createQuestionController = async (req: Request, res: Response) => {
         const questionData = req.body;
         const question = await createQuestion(questionData);
         res.status(201).json(question);
+    } catch (error: any) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+export const createEnrollmentController = async (req: Request, res: Response) => {
+    try {
+        const enrollmentData = req.body;
+        console.log(enrollmentData)
+        const enrollment = await createEnrollment(enrollmentData);
+        res.status(201).json(enrollment);
     } catch (error: any) {
         res.status(400).json({ message: error.message });
     }
