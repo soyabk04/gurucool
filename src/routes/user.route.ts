@@ -1,21 +1,22 @@
 import { Router } from "express";
 import  {createUserController,generateAccessTokenController,otpVerificationController,userLoginController,logoutUser, getUsersController,checkLoginController}  from "../controller/user.controller.js";
 import {userSigninValidator, userSignupValidator} from "../validator/users.validator.js";
-import { authorizeRoles, isloggedIn, notloggedIn,authMiddleware, authlogin } from "../middleware/auth.middleware.js";
+import { authMiddleware,notLoggedIn } from "../middleware/authentication.middleware.js";
+import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { type Request, type Response } from "express";
 import { createsuperAdmin } from "../services/user.service.js";
 
 const userRouter = Router();
 
-userRouter.post("/createuser",authorizeRoles("superadmin", "admin","coordinator"), notloggedIn, userSignupValidator, createUserController);
-userRouter.post("/login", notloggedIn, userSigninValidator, userLoginController);
-userRouter.post("/accesstoken", isloggedIn, generateAccessTokenController);
+userRouter.post("/createuser",authorizeRoles("superadmin", "admin","coordinator"), notLoggedIn, userSignupValidator, createUserController);
+userRouter.post("/login", notLoggedIn, userSigninValidator, userLoginController);
+userRouter.post("/accesstoken", authMiddleware, generateAccessTokenController);
 userRouter.post("/admin", createsuperAdmin);
 userRouter.post("/verify",otpVerificationController );
-userRouter.get("/isloggedin", authlogin, (req, res) => {
+userRouter.get("/isloggedin", authMiddleware, (req, res) => {
   res.status(200).json({
     success: true,
-    user: req.body,
+    user: req.user,
   });
 });
 userRouter.get("/",(req:Request,res:Response)=>{
@@ -24,7 +25,7 @@ userRouter.get("/",(req:Request,res:Response)=>{
         ,success:true
        })
 })
-userRouter.post("/logout", isloggedIn, logoutUser);
+userRouter.post("/logout", authMiddleware, logoutUser);
 
 userRouter.get("/getusers",getUsersController);
 export default userRouter;

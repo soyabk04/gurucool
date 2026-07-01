@@ -17,7 +17,6 @@ const courseSchema = z.object({
     description: z.string().min(1, "too short"),
     thumbnail: z.string().url(),
     price: z.number().min(1),
-    instructor: objectIdSchema
 
 });
 const chapterSchema = z.object({
