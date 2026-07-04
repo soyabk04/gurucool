@@ -4,14 +4,12 @@ import {userSigninValidator, userSignupValidator} from "../validator/users.valid
 import { authMiddleware,notLoggedIn } from "../middleware/authentication.middleware.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { type Request, type Response } from "express";
-import { createsuperAdmin } from "../services/user.service.js";
 
 const userRouter = Router();
 
-userRouter.post("/createuser",authorizeRoles("superadmin", "admin","coordinator"), notLoggedIn, userSignupValidator, createUserController);
+userRouter.post("/createuser",authMiddleware,authorizeRoles("superadmin", "admin","coordinator"), notLoggedIn, userSignupValidator, createUserController);
 userRouter.post("/login", notLoggedIn, userSigninValidator, userLoginController);
 userRouter.post("/accesstoken", authMiddleware, generateAccessTokenController);
-userRouter.post("/admin", createsuperAdmin);
 userRouter.post("/verify",otpVerificationController );
 userRouter.get("/isloggedin", authMiddleware, (req, res) => {
   res.status(200).json({

@@ -3,30 +3,28 @@ import type { Request,Response,NextFunction } from "express"
 import mongoose from "mongoose"
 import { validate } from "./courses.validator.js";
 
+const objectIdSchema = z
+    .string()
+    .trim()
+    .refine(
+        (id) => mongoose.Types.ObjectId.isValid(id),
+        { message: "Invalid ObjectId" }
+    )
+    .transform((id) => new mongoose.Types.ObjectId(id));
+
 const orgSchema = z.object({
   name: z.string().min(1, "Name is required"),
   domain: z.string().min(1, "Domain is required"),
   primaryColor: z.string().min(1, "Primary color is required"),
   secondaryColor: z.string().min(1, "Secondary color is required"),
   logoUrl: z.string().url("Invalid logo URL"),
+  adminUserId: objectIdSchema.optional(),
 });
 
 const grpSchema=z.object({
   name:z.string().min(1),
-  organization:z
-      .string()
-      .refine(
-        (id) => mongoose.Types.ObjectId.isValid(id),
-        "Invalid organization id"
-      )
-      .transform((id) => new mongoose.Types.ObjectId(id)),
-  coordinator:z
-      .string()
-      .refine(
-        (id) => mongoose.Types.ObjectId.isValid(id),
-        "Invalid group id"
-      )
-      .transform((id) => new mongoose.Types.ObjectId(id))
+  organization:objectIdSchema,
+  coordinator:objectIdSchema
 })
 
 const organizationValidator=validate(orgSchema,'validOrg')

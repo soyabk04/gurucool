@@ -27,6 +27,7 @@ export const authMiddleware = (
   try {
     const decoded = jwt.verify(token, ATJWTKEY) as { userId: string; role: string };
     req.user = decoded;
+    
 
     next();
   } catch {
@@ -42,8 +43,8 @@ export const notLoggedIn = (
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-
+  const authHeader = req.headers.accesstoken;
+  console.log("authHeader:", authHeader);
   if (!authHeader) {
     return next();
   }

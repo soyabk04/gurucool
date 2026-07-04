@@ -17,10 +17,21 @@ export interface Chapter{
     videoUrl: string;
     duration: number; 
 }
-export interface CourseAssignment{
-    courseId: Types.ObjectId;
+export interface Enrollment {
     userId: Types.ObjectId;
-    enrollmentDate: Date;
+    courseId: Types.ObjectId;
+
+    organizationId: Types.ObjectId;
+    groupId: Types.ObjectId;
+
+    enrolledBy: Types.ObjectId;
+
+    enrolledAt: Date;
+
+    completedAt?: Date;
+    progress?: number;
+
+    status: "active" | "completed";
 }
 export interface Quiz {
   chapterId: Types.ObjectId;
@@ -35,11 +46,16 @@ export interface Question {
   marks: number;
 }
 
-export interface CourseProgress {
-  userId: Types.ObjectId;
-  courseId: Types.ObjectId;
-  chapterId: Types.ObjectId;
-  watchedDuration: number;
-  completed: boolean;
-}
 
+export interface CourseProgress {
+    userId: Types.ObjectId;
+    courseId: Types.ObjectId;
+    chapterId: Types.ObjectId;
+
+    watchedDuration: number;
+    completed: boolean;
+
+    lastWatchedAt: Date;
+
+    updatedAt?: Date;
+}

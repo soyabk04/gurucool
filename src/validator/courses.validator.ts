@@ -31,6 +31,13 @@ const chapterSchema = z.object({
 const courseAssignmentSchema = z.object({
     courseId: objectIdSchema,
     userId: objectIdSchema,
+    organizationId: objectIdSchema,
+    groupId: objectIdSchema,
+    assignedBy: objectIdSchema,
+    assignedAt: z.date(),
+    dueDate: z.date(),
+    progress: z.number().min(0).max(100),
+    status: z.enum(["pending", "completed"]),
 
 });
 
@@ -86,6 +93,47 @@ export const validate =
             next();
         };
 
+export const validateMultiple =
+  (schema: z.ZodTypeAny, key: string) =>
+  (req: Request, res: Response, next: NextFunction) => {
+
+    const items = req.body[key];
+
+    if (!Array.isArray(items)) {
+      return res.status(400).json({
+        success: false,
+        message: `${key} must be an array.`,
+      });
+    }
+
+    const validItems = [];
+    const errors = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const result = schema.safeParse(items[i]);
+
+      if (result.success) {
+        validItems.push(result.data);
+      } else {
+        errors.push({
+          index: i,
+          issues: result.error.issues,
+        });
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        errors,
+      });
+    }
+
+    req.body[key] = validItems;
+
+    next();
+  };
+
 const courseProgressValidator = validate(
   courseProgressSchema,
   "validCourseProgress"
@@ -103,5 +151,5 @@ const quizValidator =
     validate(quizSchema, "validQuiz");
 
 const questionValidator =
-    validate(questionSchema, "validQuestion");
+    validateMultiple(questionSchema, "validQuestions");
 export { courseValidator, chapterValidator,courseProgressValidator, Assignmentvalidator, quizValidator, questionValidator };

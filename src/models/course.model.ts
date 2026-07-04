@@ -1,8 +1,8 @@
-import mongoose from "mongoose";
+import mongoose, { Model } from "mongoose";
 import type {
     Course,
     Chapter,
-    CourseAssignment,
+    Enrollment,
     Quiz,
     Question,
     CourseProgress,
@@ -107,26 +107,62 @@ chapterSchema.index(
 //   Enrollment
 
 
-const assignmentSchema = new Schema<CourseAssignment>(
-    {
-        courseId: {
-            type: Schema.Types.ObjectId,
-            ref: "Course",
-            required: true,
-        },
-
-        userId: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-        },
+const enrollmentSchema = new Schema<Enrollment>(
+{
+    userId:{
+        type:Schema.Types.ObjectId,
+        ref:"User",
+        required:true,
+        index:true
     },
-    {
-        timestamps: true,
-    }
-);
 
-assignmentSchema.index(
+    courseId:{
+        type:Schema.Types.ObjectId,
+        ref:"Course",
+        required:true,
+        index:true
+    },
+
+    organizationId:{
+        type:Schema.Types.ObjectId,
+        ref:"Organization",
+        required:true,
+        index:true
+    },
+
+    groupId:{
+        type:Schema.Types.ObjectId,
+        ref:"Group",
+        required:true,
+        index:true
+    },
+
+    enrolledBy:{
+        type:Schema.Types.ObjectId,
+        ref:"User"
+    },
+
+    status:{
+        type:String,
+        enum:["active","completed"],
+        default:"active"
+    },
+
+    completedAt:{
+        type:Date
+    },
+    progress: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+}
+},
+{
+    timestamps:true
+});
+
+enrollmentSchema.index(
     {
         courseId: 1,
         userId: 1,
@@ -280,19 +316,18 @@ courseProgressSchema.index(
 export const CourseModel =
     models.Course || model<Course>("Course", courseSchema);
 
-export const ChapterModel =
+export const ChapterModel: Model<Chapter> =
     models.Chapter || model<Chapter>("Chapter", chapterSchema);
 
-export const EnrollmentModel =
-    models.CourseAssignment ||
-    model<CourseAssignment>("CourseAssignment", assignmentSchema);
+export const EnrollmentModel: Model<Enrollment> =
+    models.Enrollment || model<Enrollment>("Enrollment", enrollmentSchema);
 
-export const QuizModel =
+export const QuizModel: Model<Quiz> =
     models.Quiz || model<Quiz>("Quiz", quizSchema);
 
-export const QuestionModel =
+export const QuestionModel: Model<Question> =
     models.Question || model<Question>("Question", questionSchema);
 
-export const CourseProgressModel =
+export const CourseProgressModel : Model<CourseProgress> =
     models.CourseProgress ||
     model<CourseProgress>("CourseProgress", courseProgressSchema);

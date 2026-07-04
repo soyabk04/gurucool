@@ -8,7 +8,7 @@ import { ATJWTKEY } from "../config/env.config.js";
 const createUserController = async (req: Request, res: Response) => {
   try {
     const userData = req.body.users;
-    const userInfo = req.body.userInfo;
+    const userInfo = req.user;
     const failedUser = req.body.failedUser;
     const user = await createUser(userData, userInfo, failedUser);
 

@@ -8,6 +8,7 @@ import userRouter from './routes/user.route.js';
 import courseRouter from './routes/course.route.js';
 import cors from "cors";
 import { organizationRouter } from './routes/organization.route.js';
+import { analyticsRouter } from './routes/analytics.routes.js';
 
 dotenv.config();
 
@@ -20,23 +21,19 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies
-app.use((req:Request, res:Response, next:NextFunction) => {
-    const host = req.hostname;
 
-    console.log(host);
-    next();
-});
 
 
 
 app.use(`/api/auth`, userRouter); // Import and use user routes
 app.use('/api/courses', courseRouter); // Import and use course routes
 app.use('/api/organization', organizationRouter);
+app.use('/api/analytics', analyticsRouter);
 
 
 
 
 app.listen(port, async () => {
-    console.log('Server is running on port 3000');
+    console.log(`Server is running on port ${port}`);
     await dbConnect();
 });
