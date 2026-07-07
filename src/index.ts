@@ -14,21 +14,17 @@ dotenv.config();
 const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://soyab-dev.in",
+  "https://gurucool-frontend.vercel.app",
 ];
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests without an Origin header (e.g. Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
+
+  "origin": "*",
+  "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+  "preflightContinue": false,
+  "optionsSuccessStatus": 204
+})
 );
 app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies
