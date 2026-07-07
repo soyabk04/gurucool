@@ -102,4 +102,8 @@ const getOrganizationUsersService = async (user1: {
     }
 };
 
+const getOraganizationConfig=async (hostname: string)      => {
+    
+}
+
 export { createOrganizationService, createGroupService, getOrganizationUsersService };
