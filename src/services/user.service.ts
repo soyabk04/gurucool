@@ -6,26 +6,12 @@ import { generatePassword } from "../misc/passwordGenerator.js";
 import { sendWelcomeEmail } from "../misc/sendemail.js";
 import  jwt  from "jsonwebtoken"; 
 
-export const createsuperAdmin=async ()=>{
- let pass=generatePassword(10)
-  const hashedPassword=await hashpass(
-          pass
-        ); 
-  console.log(pass)
-  await Usermodel.create({
-  name: "soyab",
-  email: "soyab@wisdomessentials.com",
-  ID: "ADM002",
-  password: hashedPassword,
-  role: "superadmin",
-});
-}
 
 export const createUser = async (users: any[], userInfo: any, failedUsers: any[]) => {
   try {
     const createdUsers = [];
     const failedUser = failedUsers;
-
+    
     for (const userData of users) {
       try {
 
@@ -57,6 +43,7 @@ export const createUser = async (users: any[], userInfo: any, failedUsers: any[]
         userData.password = await hashpass(
           pass
         );
+        console.log(pass)
 
         const newUser = new Usermodel({ ...userData, createdBy: userInfo.userId });
         await newUser.save();

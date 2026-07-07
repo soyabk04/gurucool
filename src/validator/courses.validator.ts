@@ -130,6 +130,7 @@ export const validateMultiple =
     }
 
     req.body[key] = validItems;
+    req.body.failedItems = errors;
 
     next();
   };

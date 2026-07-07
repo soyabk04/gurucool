@@ -1,12 +1,6 @@
 import { Router } from "express";
-import {
-    createOrganizationController,
-    createGroupController,
-} from "../controller/organization.controller.js";
-import {
-    organizationValidator,
-    groupValidator,
-} from "../validator/organization.validator.js";
+import { createOrganizationController,createGroupController,getOrganizationUsersController,} from "../controller/organization.controller.js";
+import {organizationValidator,groupValidator,} from "../validator/organization.validator.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { authMiddleware } from "../middleware/authentication.middleware.js";
 
@@ -19,6 +13,12 @@ organizationRouter.post(
     organizationValidator,
     createOrganizationController
 );
+organizationRouter.get(
+    "/",
+    authMiddleware,
+    authorizeRoles("superadmin", "admin", "coordinator"),
+    getOrganizationUsersController
+);
 
 organizationRouter.post(
     "/group",
@@ -26,4 +26,11 @@ organizationRouter.post(
     authorizeRoles("superadmin", "admin"),
     groupValidator,
     createGroupController
+);
+
+organizationRouter.get(
+    "/group",
+    authMiddleware,
+    authorizeRoles("coordinator"),
+    getOrganizationUsersController
 );

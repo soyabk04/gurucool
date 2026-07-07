@@ -27,16 +27,25 @@ const organizationSchema = new mongoose.Schema<organization>({
     },
     adminUserId: {
         type: mongoose.Schema.Types.ObjectId,
-        required: false
+        required: false,
+        ref: 'User'
+    
     }
 })
 const groupSchema = new mongoose.Schema<group>({
      name:{
         type:String,
-        organization:mongoose.Types.ObjectId,
-        coordinator:mongoose.Types.ObjectId
+        required:true
 
-     }
+     },
+     organization:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Organization',
+     },
+        coordinator:{
+            type:mongoose.Schema.Types.ObjectId,
+            ref:'User'
+        }
 })
 
 const orgPurchaseSchema = new mongoose.Schema<orgPurchase>({

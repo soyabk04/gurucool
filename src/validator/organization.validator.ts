@@ -2,6 +2,7 @@ import {z} from "zod"
 import type { Request,Response,NextFunction } from "express"
 import mongoose from "mongoose"
 import { validate } from "./courses.validator.js";
+import {userSchema} from "./users.validator.js"
 
 const objectIdSchema = z
     .string()
@@ -19,12 +20,13 @@ const orgSchema = z.object({
   secondaryColor: z.string().min(1, "Secondary color is required"),
   logoUrl: z.string().url("Invalid logo URL"),
   adminUserId: objectIdSchema.optional(),
+  users:userSchema.array().optional()
 });
 
 const grpSchema=z.object({
   name:z.string().min(1),
-  organization:objectIdSchema,
-  coordinator:objectIdSchema
+  coordinator:objectIdSchema,
+  users:userSchema.array().optional()
 })
 
 const organizationValidator=validate(orgSchema,'validOrg')

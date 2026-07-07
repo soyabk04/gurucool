@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema<User>({
     },
     email: {
         type: String,
-        required: true, 
+        required: true,
         unique: true
     },
     ID: {
@@ -20,23 +20,27 @@ const userSchema = new mongoose.Schema<User>({
         type: String,
         required: true
     },
-    groupId:{
-        type:String,
-required: false
+    groupId: {
+        type: String,
+        required: false,
+        ref: 'group'
     },
-    role:{ type: String, 
-        enum: ['user', 'superadmin','admin','coordinator'],
-        default: 'user' },
+    role: {
+        type: String,
+        enum: ['user', 'superadmin', 'admin', 'coordinator'],
+        default: 'user'
+    },
     organization: {
         type: String,
-        required: false
+        required: false,
+        ref: 'Organization'
     },
     otpverified: {
         type: Boolean,
         default: false,
     }
 
-},{timestamps: true});
+}, { timestamps: true });
 
 const otpSchema = new mongoose.Schema<Otp>({
     userId: {

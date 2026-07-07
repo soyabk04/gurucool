@@ -1,8 +1,9 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
+import type { User } from "./user.type.js";
 
 export interface orgPurchase{
-    organizationId: mongoose.Schema.Types.ObjectId;
-    courseId: mongoose.Schema.Types.ObjectId;
+    organizationId: Types.ObjectId;
+    courseId: Types.ObjectId;
     purchaseDate: Date;
     amount: number;
 }
@@ -13,12 +14,14 @@ export interface organization {
     primaryColor: string;
     secondaryColor: string;
     logoUrl: string;
-    adminUserId?: mongoose.Schema.Types.ObjectId;
+    adminUserId?: Types.ObjectId;
+    users?: User[];
     createdAt?: Date;
     updatedAt?: Date;
 }
 export interface group {
     name:string;
-    organization:mongoose.Schema.Types.ObjectId;
-    coordinator:mongoose.Schema.Types.ObjectId;
+    organization:Types.ObjectId;
+    coordinator:Types.ObjectId;
+    users?: User[];
 }

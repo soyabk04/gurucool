@@ -1,5 +1,4 @@
 import express from 'express';
-import type { Request,Response,NextFunction } from 'express';
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { port,version } from './config/env.config.js';
@@ -9,7 +8,7 @@ import courseRouter from './routes/course.route.js';
 import cors from "cors";
 import { organizationRouter } from './routes/organization.route.js';
 import { analyticsRouter } from './routes/analytics.routes.js';
-
+import {getOrganizationUsersService} from "./services/organization.service.js"
 dotenv.config();
 
 const app = express();
@@ -21,8 +20,6 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies
-
-
 
 
 app.use(`/api/auth`, userRouter); // Import and use user routes
