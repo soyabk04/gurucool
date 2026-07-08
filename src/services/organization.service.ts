@@ -8,16 +8,15 @@ const createOrganizationService = async (orgData: organization, admin: User[]) =
     try {
         const organization = new Organizationmodel(orgData);
         await organization.save();
-        admin.forEach(async (user) => {
+        await Promise.all(admin.map(async (user) => {
             user.organization = organization._id;
             user.role = "admin";
             const newUser = new Usermodel(user);
             await newUser.save();
             orgData.adminUserId = newUser._id;
             await organization.save();
-        }
+        }));
 
-        )
         return { success: true, organization, message: "Organization and admin users created successfully" }
     } catch (error: any) {
         throw new Error(`message: ${error.message}`);
@@ -40,7 +39,7 @@ const createGroupService = async (
         orgId ? (grpData.organization = orgId) : null;
         const group = await Groupmodel.create(grpData);
 
-        for (const user of admin) {
+        await Promise.all(admin.map(async (user) => {
             user.groupId = group._id;
             user.organization = group.organization;
             user.role = "coordinator";
@@ -49,7 +48,7 @@ const createGroupService = async (
 
             group.coordinator = newUser._id;
             await group.save();
-        }
+        }));
 
         return { success: true, group, message: "Group and coordinator users created successfully" };
     } catch (error: any) {

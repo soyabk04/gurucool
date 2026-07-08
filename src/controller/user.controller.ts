@@ -7,7 +7,7 @@ import { ATJWTKEY } from "../config/env.config.js";
 
 const createUserController = async (req: Request, res: Response) => {
   try {
-    const userData = req.body.users;
+    const userData = req.body.validUsers;
     const userInfo = req.user;
     const failedUser = req.body.failedUser;
     const user = await createUser(userData, userInfo, failedUser);
@@ -49,26 +49,22 @@ const createUserController = async (req: Request, res: Response) => {
 // };
 
 const getUsersController = async (req: Request, res: Response) => {
-      const token = req.headers.accesstoken;
-    if (!token || Array.isArray(token)) {
-      throw new Error("Invalid token");
+  try {
+    const user = req.user;
+    if (!user) {
+      throw new Error("User not Found");
     }
 
-    const userdata = jwt.verify(token, ATJWTKEY) as {
-      userId: string;
-      role: "user" | "admin" | "superadmin" | "coordinator";
-    }
-    const userInfo = {
-      role: userdata.role,
-      userId: userdata.userId
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
 
-    }
-  const page = Number(req.query.page) || 1;
-  const limit = Number(req.query.limit) || 10;
+    const result = await getUsers(user, page, limit);
 
-  const result = await getUsers(userInfo, page, limit);
+    res.status(200).json(result);
+  } catch (error:any) {
+       throw new Error(`error :${error.message}`)
+  }
 
-  res.status(200).json(result);
 };
 
 const userLoginController = async (req: Request, res: Response) => {
@@ -134,18 +130,18 @@ const logoutUser = async (req: Request, res: Response) => {
 };
 const checkLoginController = (req: Request, res: Response) => {
   try {
-    const accesstoken = req.headers.accesstoken;
+    const accesstoken = req.headers.authorization?.split(" ")[1];
     if (!accesstoken || Array.isArray(accesstoken)) {
       throw new Error("Invalid token");
     }
     const result = checkLogin(accesstoken)
-    res.send({result})
+    res.send({ result })
   } catch (error: any) {
-    throw new Error(`Error logging out: ${error.message}`);
+    res.status(401).json({ message: `${error.message}` });
   }
 }
 
-export { 
+export {
   createUserController, userLoginController, generateAccessTokenController,
-   otpVerificationController, getUsersController,logoutUser,checkLoginController
-   };
+  otpVerificationController, getUsersController, logoutUser, checkLoginController
+};

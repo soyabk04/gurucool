@@ -43,7 +43,7 @@ export const notLoggedIn = (
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.accesstoken;
+  const authHeader = req.headers.authorization;
   console.log("authHeader:", authHeader);
   if (!authHeader) {
     return next();

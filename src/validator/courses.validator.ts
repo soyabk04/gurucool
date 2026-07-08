@@ -21,7 +21,7 @@ const courseSchema = z.object({
 });
 const chapterSchema = z.object({
     serialNo: z.number(),
-    course: objectIdSchema,
+    courseId: objectIdSchema,
     title: z.string(),
     description: z.string(),
     videoUrl: z.string().url(),

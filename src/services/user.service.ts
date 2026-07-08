@@ -6,6 +6,7 @@ import { generatePassword } from "../misc/passwordGenerator.js";
 import { sendWelcomeEmail } from "../misc/sendemail.js";
 import  jwt  from "jsonwebtoken"; 
 import { Groupmodel } from "../models/organization.model.js";
+import { ATJWTKEY } from "../config/env.config.js";
 
 
 export const createUser = async (users: any[], userInfo: any, failedUsers: any[]) => {
@@ -257,7 +258,7 @@ export const getUserRole = async (userId: string) => {
 };
 export const checkLogin = async (accesstoken:string)=>{
     try{
-      const token =jwt.verify(accesstoken,"secretKey")
+      const token =jwt.verify(accesstoken,ATJWTKEY) as { userId: string; role: string };
           if (token){
         return ({success:true,message:"user is logged in"})
       }

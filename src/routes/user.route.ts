@@ -7,9 +7,9 @@ import { type Request, type Response } from "express";
 
 const userRouter = Router();
 
-userRouter.post("/createuser",authMiddleware,authorizeRoles("superadmin", "admin","coordinator"), notLoggedIn, userSignupValidator, createUserController);
+userRouter.post("/createuser",notLoggedIn,authMiddleware,authorizeRoles("superadmin", "admin","coordinator"), userSignupValidator, createUserController);
 userRouter.post("/login", notLoggedIn, userSigninValidator, userLoginController);
-userRouter.post("/accesstoken", authMiddleware, generateAccessTokenController);
+userRouter.post("/accesstoken", generateAccessTokenController);
 userRouter.post("/verify",otpVerificationController );
 userRouter.get("/isloggedin", authMiddleware, (req, res) => {
   res.status(200).json({
@@ -25,5 +25,5 @@ userRouter.get("/",(req:Request,res:Response)=>{
 })
 userRouter.post("/logout", authMiddleware, logoutUser);
 
-userRouter.get("/getusers",getUsersController);
+userRouter.get("/getusers",authMiddleware, getUsersController);
 export default userRouter;

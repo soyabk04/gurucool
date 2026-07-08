@@ -44,7 +44,7 @@ export const createQuestionController = async (req: Request, res: Response) => {
 
 export const createEnrollmentController = async (req: Request, res: Response) => {
     try {
-        const enrollmentData = req.body.ValidAssignment;
+        const enrollmentData = req.body.validEnrollment;
         const accessToken = req.headers.accesstoken as string;
         console.log(enrollmentData)
         const enrollment = await createEnrollment(enrollmentData);

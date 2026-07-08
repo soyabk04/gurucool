@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema<User>({
         required: true
     },
     groupId: {
-        type: String,
+        type: mongoose.Types.ObjectId,
         required: false,
         ref: 'group'
     },
@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema<User>({
         default: 'user'
     },
     organization: {
-        type: String,
+        type: mongoose.Types.ObjectId,
         required: false,
         ref: 'Organization'
     },
@@ -52,7 +52,7 @@ const otpSchema = new mongoose.Schema<Otp>({
         type: Number,
         required: true
     }
-});
+}, { timestamps: true });
 otpSchema.index({ createdAt: 1 }, { expireAfterSeconds: 3600 });
 
 const Otpmodel = mongoose.model('Otp', otpSchema);
