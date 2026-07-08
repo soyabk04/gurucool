@@ -33,6 +33,7 @@ const createGroupService = async (
         const adminUser = await Usermodel.findById(adminData.userId);
         const orgId = adminUser?.organization;
         const organization = await Organizationmodel.findById(orgId);
+        grpData.groupCode = grpData.groupCode.toUpperCase();
         if (!organization) {
             throw new Error("Organization not found");
         }
@@ -102,8 +103,12 @@ const getOrganizationUsersService = async (user1: {
     }
 };
 
-const getOraganizationConfig=async (hostname: string)      => {
-    
+const getOraganizationConfig = async (hostname: string) => {
+    const organization = await Organizationmodel.findOne({ domain: hostname }).select;
+    if (!organization) {
+        throw new Error("Organization not found");
+    }
+    return organization;
 }
 
 export { createOrganizationService, createGroupService, getOrganizationUsersService };

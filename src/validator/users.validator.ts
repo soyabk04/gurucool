@@ -7,7 +7,7 @@ export const userSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6, "Password must be at least 6 characters long").optional(),
     role: z.enum(['user', 'superadmin', 'admin', 'coordinator']),
-    groupId: z.string().optional(),
+    groupCode: z.string().optional(),
     ID: z.string(),
     organization: z
         .string()

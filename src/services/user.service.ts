@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import { generatePassword } from "../misc/passwordGenerator.js";
 import { sendWelcomeEmail } from "../misc/sendemail.js";
 import  jwt  from "jsonwebtoken"; 
+import { Groupmodel } from "../models/organization.model.js";
 
 
 export const createUser = async (users: any[], userInfo: any, failedUsers: any[]) => {
@@ -44,6 +45,17 @@ export const createUser = async (users: any[], userInfo: any, failedUsers: any[]
           pass
         );
         console.log(pass)
+        let groupId=await Groupmodel.findOne({
+          groupCode: userData.groupCode.toUpperCase(),
+        });
+        if (!groupId) {
+          failedUser.push({
+            user: userData,
+            error: "Group not found",
+          });
+          continue;
+        }
+        userData.groupId = groupId._id;
 
         const newUser = new Usermodel({ ...userData, createdBy: userInfo.userId });
         await newUser.save();

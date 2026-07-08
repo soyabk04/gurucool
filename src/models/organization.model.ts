@@ -45,6 +45,10 @@ const groupSchema = new mongoose.Schema<group>({
         coordinator:{
             type:mongoose.Schema.Types.ObjectId,
             ref:'User'
+        },
+        groupCode:{
+            type:String,
+            required:true       
         }
 })
 

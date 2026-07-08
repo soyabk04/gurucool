@@ -8,14 +8,9 @@ import courseRouter from './routes/course.route.js';
 import cors from "cors";
 import { organizationRouter } from './routes/organization.route.js';
 import { analyticsRouter } from './routes/analytics.routes.js';
-import {getOrganizationUsersService} from "./services/organization.service.js"
 dotenv.config();
 
 const app = express();
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://gurucool-frontend.vercel.app",
-];
 
 app.use(
   cors({

@@ -26,7 +26,8 @@ const orgSchema = z.object({
 const grpSchema=z.object({
   name:z.string().min(1),
   coordinator:objectIdSchema,
-  users:userSchema.array().optional()
+  users:userSchema.array().optional(),
+  groupCode:z.string().min(1, "Group code is required")
 })
 
 const organizationValidator=validate(orgSchema,'validOrg')

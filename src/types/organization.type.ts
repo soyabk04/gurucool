@@ -22,6 +22,7 @@ export interface organization {
 export interface group {
     name:string;
     organization:Types.ObjectId;
+    groupCode:string;
     coordinator:Types.ObjectId;
     users?: User[];
 }
