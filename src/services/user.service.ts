@@ -7,12 +7,13 @@ import { sendWelcomeEmail } from "../misc/sendemail.js";
 import  jwt  from "jsonwebtoken"; 
 import { Groupmodel } from "../models/organization.model.js";
 import { ATJWTKEY } from "../config/env.config.js";
+import { ErrorCode } from "../errors/ErrorCode.js";
+import { AppError } from "../errors/AppError.js";
 
+export const createUser = async (users: any[], userInfo: any, faileditems: any[]) => {
 
-export const createUser = async (users: any[], userInfo: any, failedUsers: any[]) => {
-  try {
     const createdUsers = [];
-    const failedUser = failedUsers;
+    const failedUser = faileditems;
     
     for (const userData of users) {
       try {
@@ -79,28 +80,40 @@ export const createUser = async (users: any[], userInfo: any, failedUsers: any[]
       createdUsers,
       failedUsers: failedUser,
     };
-  } catch (error: any) {
-    throw new Error(
-      `Error creating users: ${error.message}`
+  }
+
+
+
+
+export const userlogin = async (
+  email: string,
+  password: string
+) => {
+  const user = await Usermodel.findOne({ email });
+
+  if (!user) {
+    throw new AppError(
+      "User not found",
+      404,
+      ErrorCode.USER_NOT_FOUND
     );
   }
-};
-export const userlogin = async (email: string, password: string) => {
-  try {
-    const user = await Usermodel.findOne({ email: email });
-    if (!user) {
-      throw new Error("User not found");
-    }
-    const isMatch = await comparepass(password, user.password);
-    if (!isMatch) {
-      throw new Error("Invalid password");
-    }
-    return { message: "Login successful", user:user};
 
-  } catch (error: any) {
-    throw new Error(`Error logging in: ${error.message}`);
+  const isMatch = await comparepass(password, user.password);
+
+  if (!isMatch) {
+    throw new AppError(
+      "Invalid email or password",
+      401,
+      ErrorCode.INVALID_CREDENTIALS
+    );
   }
-}
+
+  return {
+    message: "Login successful",
+    user,
+  };
+};
 
 export const getUsers = async (
   userInfo: {
@@ -199,11 +212,10 @@ export const getUsers = async (
     };
   }
 
-  throw new Error("Unauthorized");
+  
 };
 
 export const verifyUser = async (userId: string, otp: string) => {
-  try {
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       throw new Error("Invalid user ID");
@@ -233,9 +245,7 @@ export const verifyUser = async (userId: string, otp: string) => {
       message: "User verified successfully",
       user,
     };
-  } catch (error: any) {
-    throw new Error(`Error verifying user: ${error.message}`);
-  }
+ 
 };
 
 export const getUserRole = async (userId: string) => {

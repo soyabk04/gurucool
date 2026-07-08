@@ -19,7 +19,7 @@ export const userSchema = z.object({
         .optional()
 
 });
-const userSignupValidator=validateMultiple(userSchema,'validUsers')
+const userSignupValidator=validateMultiple(userSchema,'users')
 
 const userSigninValidator = (req: Request, res: Response, next: NextFunction) => {
     const userSchema = z.object({

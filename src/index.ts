@@ -8,6 +8,7 @@ import courseRouter from './routes/course.route.js';
 import cors from "cors";
 import { organizationRouter } from './routes/organization.route.js';
 import { analyticsRouter } from './routes/analytics.routes.js';
+import { errorMiddleware } from './middleware/errorMiddleware.js';
 dotenv.config();
 
 const app = express();
@@ -25,7 +26,7 @@ app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies
 
 
-app.use(`/api/auth`, userRouter); // Import and use user routes
+app.use("/api/auth", userRouter); // Import and use user routes
 app.use('/api/courses', courseRouter); // Import and use course routes
 app.use('/api/organization', organizationRouter);
 app.use('/api/analytics', analyticsRouter);
@@ -37,13 +38,8 @@ app.use((req, res) => {
   });
 });
 
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || "Internal server error",
-  });
-});
+
+app.use(errorMiddleware)
 
 app.listen(port, async () => {
     console.log(`Server is running on port ${port}`);

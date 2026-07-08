@@ -3,6 +3,7 @@ import { createOrganizationController,createGroupController,getOrganizationUsers
 import {organizationValidator,groupValidator,} from "../validator/organization.validator.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { authMiddleware } from "../middleware/authentication.middleware.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
 
 export const organizationRouter = Router();
 
@@ -11,13 +12,13 @@ organizationRouter.post(
     authMiddleware,
     authorizeRoles("superadmin"),
     organizationValidator,
-    createOrganizationController
+    asyncHandler(createOrganizationController)
 );
 organizationRouter.get(
     "/",
     authMiddleware,
     authorizeRoles("superadmin", "admin", "coordinator"),
-    getOrganizationUsersController
+    asyncHandler(getOrganizationUsersController)
 );
 
 organizationRouter.post(
@@ -25,12 +26,12 @@ organizationRouter.post(
     authMiddleware,
     authorizeRoles("superadmin", "admin"),
     groupValidator,
-    createGroupController
+    asyncHandler(createGroupController)
 );
 
 organizationRouter.get(
     "/group",
     authMiddleware,
     authorizeRoles("coordinator"),
-    getOrganizationUsersController
+    asyncHandler(getOrganizationUsersController)
 );
