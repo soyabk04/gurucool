@@ -7,7 +7,7 @@ import { type Request, type Response } from "express";
 
 const userRouter = Router();
 
-userRouter.post("/createuser",notLoggedIn,authMiddleware,authorizeRoles("superadmin", "admin","coordinator"), userSignupValidator, createUserController);
+userRouter.post("/createuser",authMiddleware,authorizeRoles("superadmin", "admin","coordinator"), userSignupValidator, createUserController);
 userRouter.post("/login", notLoggedIn, userSigninValidator, userLoginController);
 userRouter.post("/accesstoken", generateAccessTokenController);
 userRouter.post("/verify",otpVerificationController );

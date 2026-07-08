@@ -61,8 +61,8 @@ const getUsersController = async (req: Request, res: Response) => {
     const result = await getUsers(user, page, limit);
 
     res.status(200).json(result);
-  } catch (error:any) {
-       throw new Error(`error :${error.message}`)
+  } catch (error: any) {
+    res.status(500).json({ message: `${error.message}` });
   }
 
 };
@@ -128,13 +128,13 @@ const logoutUser = async (req: Request, res: Response) => {
     throw new Error(`Error logging out: ${error.message}`);
   }
 };
-const checkLoginController = (req: Request, res: Response) => {
+const checkLoginController = async (req: Request, res: Response) => {
   try {
     const accesstoken = req.headers.authorization?.split(" ")[1];
     if (!accesstoken || Array.isArray(accesstoken)) {
       throw new Error("Invalid token");
     }
-    const result = checkLogin(accesstoken)
+    const result = await checkLogin(accesstoken)
     res.send({ result })
   } catch (error: any) {
     res.status(401).json({ message: `${error.message}` });

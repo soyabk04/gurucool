@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { gmailId,gmailPass } from "../config/env.config.js";
 // Create a transporter using SMTP
-export const sendmail=async (subject:string, message:string,recipient:string)=>{
+export const sendmail=async (subject:string, message:string,recipient:string, isHtml:boolean=false)=>{
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
@@ -17,8 +17,8 @@ try {
     from: '"gurucool Team" <team@example.com>', // sender address
     to: recipient, // list of recipients
     subject: subject, // subject line
-    text: message, // plain text body
-    html: `<b>${message}</b>`, // HTML body
+    text: isHtml ? undefined : message, // plain text body
+    html: isHtml ? message : `<b>${message}</b>`, // HTML body
   });
 
   console.log("Message sent: %s", info.messageId);
@@ -32,8 +32,7 @@ try {
 export const sendWelcomeEmail=async (user:any,password:string,organization:string)=>{
   
   let template =
-`html
-<!DOCTYPE html>
+`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -130,5 +129,5 @@ export const sendWelcomeEmail=async (user:any,password:string,organization:strin
   const subject="Welcome to Gurucool!";
   const message=emailBody;
 
-  await sendmail(subject, message, user.email);
+  await sendmail(subject, message, user.email, true);
 }

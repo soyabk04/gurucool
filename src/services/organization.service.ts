@@ -3,6 +3,9 @@ import { Groupmodel, Organizationmodel, OrgPurchasemodel } from "../models/organ
 import { Usermodel } from "../models/user.model.js";
 import type { organization, orgPurchase, group } from "../types/organization.type.js";
 import type { User } from "../types/user.type.js";
+import { generatePassword } from "../misc/passwordGenerator.js";
+import { hashpass } from "../misc/passwordhash.js";
+import { sendWelcomeEmail } from "../misc/sendemail.js";
 
 const createOrganizationService = async (orgData: organization, admin: User[]) => {
     try {
@@ -11,10 +14,17 @@ const createOrganizationService = async (orgData: organization, admin: User[]) =
         await Promise.all(admin.map(async (user) => {
             user.organization = organization._id;
             user.role = "admin";
+
+            const plainPassword = user.password || generatePassword();
+            user.password = await hashpass(plainPassword);
+
             const newUser = new Usermodel(user);
             await newUser.save();
-            orgData.adminUserId = newUser._id;
+
+            organization.adminUserId = newUser._id;
             await organization.save();
+
+            await sendWelcomeEmail(newUser, plainPassword, organization.name);
         }));
 
         return { success: true, organization, message: "Organization and admin users created successfully" }
@@ -44,10 +54,15 @@ const createGroupService = async (
             user.organization = group.organization;
             user.role = "coordinator";
 
+            const plainPassword = user.password || generatePassword();
+            user.password = await hashpass(plainPassword);
+
             const newUser = await Usermodel.create(user);
 
             group.coordinator = newUser._id;
             await group.save();
+
+            await sendWelcomeEmail(newUser, plainPassword, organization.name);
         }));
 
         return { success: true, group, message: "Group and coordinator users created successfully" };
@@ -103,7 +118,7 @@ const getOrganizationUsersService = async (user1: {
 };
 
 const getOraganizationConfig = async (hostname: string) => {
-    const organization = await Organizationmodel.findOne({ domain: hostname }).select;
+    const organization = await Organizationmodel.findOne({ domain: hostname });
     if (!organization) {
         throw new Error("Organization not found");
     }

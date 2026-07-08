@@ -156,13 +156,17 @@ export const createEnrollmentByGroup = async (
             throw new Error("Group ID is required.");
         }
 
-        const [users, courseExists] = await Promise.all([
+        const [users, courseExists, groupDoc] = await Promise.all([
             Usermodel.find({ groupId }).select("_id").session(session),
             CourseModel.exists({ _id: courseId }).session(session),
+            Groupmodel.findById(groupId).session(session),
         ]);
 
         if (!courseExists) {
             throw new Error("Course not found.");
+        }
+        if (!groupDoc) {
+            throw new Error("Group not found.");
         }
         if (users.length === 0) {
             throw new Error("No users found for this group.");
@@ -193,6 +197,8 @@ export const createEnrollmentByGroup = async (
         const enrollmentDocs = usersToEnroll.map((userId) => ({
             userId,
             courseId,
+            groupId,
+            organizationId: groupDoc.organization,
         }));
 
         const enrollments = await EnrollmentModel.insertMany(enrollmentDocs, {

@@ -6,6 +6,11 @@ export const dashboardAnalyticsService = async (
     user: any
 ) => {
     const User=await Usermodel.findById(user.userId);
+
+    if (!User) {
+        throw new Error("User not found");
+    }
+
     const analytics = await dashboardAnalyticsRepository(User);
 
     return analytics;

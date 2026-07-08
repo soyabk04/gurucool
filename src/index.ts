@@ -30,8 +30,20 @@ app.use('/api/courses', courseRouter); // Import and use course routes
 app.use('/api/organization', organizationRouter);
 app.use('/api/analytics', analyticsRouter);
 
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
+});
 
-
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error(err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal server error",
+  });
+});
 
 app.listen(port, async () => {
     console.log(`Server is running on port ${port}`);

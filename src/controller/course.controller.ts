@@ -33,8 +33,7 @@ export const createQuizController = async (req: Request, res: Response) => {
 };
 export const createQuestionController = async (req: Request, res: Response) => {
     try {
-        const questionData = req.body.validQuestion;
-        const accessToken = req.headers.accesstoken as string;
+        const questionData = req.body.validQuestions;
         const question = await createQuestion(questionData);
         res.status(201).json(question);
     } catch (error: any) {
@@ -44,9 +43,7 @@ export const createQuestionController = async (req: Request, res: Response) => {
 
 export const createEnrollmentController = async (req: Request, res: Response) => {
     try {
-        const enrollmentData = req.body.validEnrollment;
-        const accessToken = req.headers.accesstoken as string;
-        console.log(enrollmentData)
+        const enrollmentData = req.body.validAssignment;
         const enrollment = await createEnrollment(enrollmentData);
         res.status(201).json(enrollment);
     } catch (error: any) {
@@ -82,6 +79,7 @@ export const enrollGroupController = async (
             "Course ID is required.",
             "Group ID is required.",
             "Course not found.",
+            "Group not found.",
             "No users found for this group.",
             "All users in this group are already enrolled in this course.",
             "One or more users are already enrolled in this course.",

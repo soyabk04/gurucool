@@ -45,7 +45,6 @@ export const createUser = async (users: any[], userInfo: any, failedUsers: any[]
         userData.password = await hashpass(
           pass
         );
-        console.log(pass)
         let groupId=await Groupmodel.findOne({
           groupCode: userData.groupCode.toUpperCase(),
         });

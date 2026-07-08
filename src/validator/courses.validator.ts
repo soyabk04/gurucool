@@ -33,11 +33,9 @@ const courseAssignmentSchema = z.object({
     userId: objectIdSchema,
     organizationId: objectIdSchema,
     groupId: objectIdSchema,
-    assignedBy: objectIdSchema,
-    assignedAt: z.date(),
-    dueDate: z.date(),
-    progress: z.number().min(0).max(100),
-    status: z.enum(["pending", "completed"]),
+    enrolledBy: objectIdSchema.optional(),
+    progress: z.number().min(0).max(100).optional(),
+    status: z.enum(["active", "completed"]).optional(),
 
 });
 

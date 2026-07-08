@@ -13,9 +13,37 @@ export const dashboardAnalyticsRepository = async (
 
     const pipeline = dashboardPipeline(user);
 
-    const [result] = await Usermodel.aggregate(pipeline);
+    const [
+        [studentCounts],
+        totalOrganizations,
+        totalGroups,
+        totalCourses,
+        totalEnrollments,
+    ] = await Promise.all([
+        Usermodel.aggregate(pipeline),
+        user.role === "superadmin"
+            ? Organizationmodel.countDocuments()
+            : 1,
+        user.role === "superadmin"
+            ? Groupmodel.countDocuments()
+            : user.role === "admin"
+                ? Groupmodel.countDocuments({ organization: user.organization })
+                : 1,
+        CourseModel.countDocuments(),
+        user.role === "superadmin"
+            ? EnrollmentModel.countDocuments()
+            : user.role === "admin"
+                ? EnrollmentModel.countDocuments({ organizationId: user.organization })
+                : EnrollmentModel.countDocuments({ groupId: user.groupId }),
+    ]);
 
-    return result;
+    return {
+        ...studentCounts,
+        totalOrganizations,
+        totalGroups,
+        totalCourses,
+        totalEnrollments,
+    };
 
 };
 
