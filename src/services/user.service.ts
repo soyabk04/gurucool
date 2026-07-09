@@ -1,14 +1,15 @@
 import { Otpmodel, Usermodel } from "../models/user.model.js";
-import { comparepass, hashpass } from "../misc/passwordhash.js";
-import { generateOTP } from "../misc/otpgenerator.js";
+import { comparepass, hashpass } from "../utils/passwordhash.js";
+import { generateOTP } from "../utils/otpgenerator.js";
 import mongoose from "mongoose";
-import { generatePassword } from "../misc/passwordGenerator.js";
-import { sendWelcomeEmail } from "../misc/sendemail.js";
+import { generatePassword } from "../utils/passwordGenerator.js";
+import { sendWelcomeEmail } from "../utils/sendemail.js";
 import  jwt  from "jsonwebtoken"; 
 import { Groupmodel } from "../models/organization.model.js";
 import { ATJWTKEY } from "../config/env.config.js";
 import { ErrorCode } from "../errors/ErrorCode.js";
 import { AppError } from "../errors/AppError.js";
+import { emailQueue } from "../queue/email.queue.js";
 
 export const createUser = async (users: any[], userInfo: any, faileditems: any[]) => {
 
@@ -65,7 +66,12 @@ export const createUser = async (users: any[], userInfo: any, faileditems: any[]
         if (!organization?.name) {
           throw new Error("Organization not found");
         }
-        await sendWelcomeEmail(newUser, pass, organization.name)
+        let orgName=organization.name
+        await emailQueue.add("welcome-email", {
+  newUser,
+  pass,
+  orgName,
+});
 
         createdUsers.push(newUser);
       } catch (error: any) {

@@ -1,8 +1,9 @@
 import { checkLogin, createUser, getUsers } from "../services/user.service.js";
 import { userlogin, verifyUser } from "../services/user.service.js";
 import { type Request, type Response } from "express";
-import { generateToken, generateAccessToken } from "../misc/jwtToken.js";
+import { generateToken, generateAccessToken } from "../utils/jwtToken.js";
 import { AppError } from "../errors/AppError.js";
+import { csvToArray } from "../utils/csvToArray.js";
 import jwt from "jsonwebtoken";
 import { ATJWTKEY } from "../config/env.config.js";
 
@@ -91,6 +92,29 @@ const logoutUser = async (req: Request, res: Response) => {
       message: "Logged out successfully",
     });
 
+};
+
+
+
+export const bulkUploadUsers = async (
+  req: Request,
+  res: Response
+) => {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: "CSV file is required",
+    });
+  }
+
+  const users = await csvToArray(req.file.buffer);
+
+  console.log(users);
+
+  res.json({
+    success: true,
+    data: users,
+  });
 };
 
 export {

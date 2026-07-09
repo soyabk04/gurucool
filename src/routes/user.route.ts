@@ -5,6 +5,9 @@ import { authMiddleware,notLoggedIn } from "../middleware/authentication.middlew
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { type Request, type Response } from "express";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { bulkUploadUsers } from "../controller/user.controller.js";
+import { upload } from "../middleware/upload.middleware.js";
+
 
 const userRouter = Router();
 
@@ -25,6 +28,14 @@ userRouter.get("/",(req:Request,res:Response)=>{
        })
 })
 userRouter.post("/logout", authMiddleware, asyncHandler(logoutUser));
+
+userRouter.post(
+  "/csvparse",
+  authMiddleware,authorizeRoles('superadmin','admin','coordinator'),
+  upload.single("file"),
+  bulkUploadUsers
+);
+
 
 userRouter.get("/getusers",authMiddleware, asyncHandler(getUsersController));
 export default userRouter;

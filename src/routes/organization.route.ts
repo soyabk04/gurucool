@@ -32,6 +32,6 @@ organizationRouter.post(
 organizationRouter.get(
     "/group",
     authMiddleware,
-    authorizeRoles("coordinator"),
+    authorizeRoles("coordinator","admin"),
     asyncHandler(getOrganizationUsersController)
 );

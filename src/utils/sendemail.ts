@@ -29,8 +29,6 @@ try {
 }
 }
 
-export const sendWelcomeEmail=async (user:any,password:string,organization:string)=>{
-  
   let template =
 `<!DOCTYPE html>
 <html>
@@ -73,7 +71,7 @@ export const sendWelcomeEmail=async (user:any,password:string,organization:strin
                 style="background:#f8fafc;border-radius:8px;padding:20px;margin:25px 0;">
                 <tr>
                   <td>
-                    <p><strong>Organization:</strong> {{organization}}</p>
+                    <p><strong>Organization:</strong> {{organizationName}}</p>
                     <p><strong>Email:</strong> {{email}}</p>
                     <p><strong>Password:</strong> {{password}}</p>
                   </td>
@@ -120,11 +118,17 @@ export const sendWelcomeEmail=async (user:any,password:string,organization:strin
 
  ;
 
+
+export const sendWelcomeEmail=async (user:any,password:string,orgName:string)=>{
+  
+  console.log(orgName)
+
   const emailBody = template
   .replace("{{name}}", user.name)
   .replace("{{email}}", user.email)
   .replace("{{password}}", password)
-  .replace("{{organization}}", organization);
+  .replace("{{organization}}", orgName)
+  .replace("{{organizationName}}", orgName);
 
   const subject="Welcome to Gurucool!";
   const message=emailBody;
