@@ -5,13 +5,14 @@ import { sendWelcomeEmail } from "../utils/sendemail.js"; // Change this path
 export const emailWorker = new Worker(
   "emailQueue",
   async (job) => {
-    const { user,password,orgName } = job.data;
+    const { newUser,pass,orgName } = job.data;
+
 
     await sendWelcomeEmail(
-      user,password,orgName
+      newUser,pass,orgName
     );
 
-    console.log(` Email sent to ${user.email}`);
+    console.log(` Email sent to ${newUser.email}`);
   },
   {
     connection,

@@ -7,6 +7,7 @@ import { type Request, type Response } from "express";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { bulkUploadUsers } from "../controller/user.controller.js";
 import { upload } from "../middleware/upload.middleware.js";
+import { uploadFile } from "../controller/upload.controller.js";
 
 
 const userRouter = Router();
@@ -35,6 +36,11 @@ userRouter.post(
   upload.single("file"),
   bulkUploadUsers
 );
+
+
+
+
+userRouter.post("/upload", upload.single("file"), uploadFile);
 
 
 userRouter.get("/getusers",authMiddleware, asyncHandler(getUsersController));

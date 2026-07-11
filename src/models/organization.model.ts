@@ -23,7 +23,7 @@ const organizationSchema = new mongoose.Schema<organization>({
 
     logoUrl: {
         type: String,
-        required: true
+        required: false
     },
     adminUserId: {
         type: mongoose.Schema.Types.ObjectId,

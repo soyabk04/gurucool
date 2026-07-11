@@ -18,7 +18,7 @@ const orgSchema = z.object({
   domain: z.string().min(1, "Domain is required"),
   primaryColor: z.string().min(1, "Primary color is required"),
   secondaryColor: z.string().min(1, "Secondary color is required"),
-  logoUrl: z.string().url("Invalid logo URL"),
+  logoUrl: z.string().url("Invalid logo URL").optional(),
   adminUserId: objectIdSchema.optional(),
   users:userSchema.array().optional()
 });

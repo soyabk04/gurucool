@@ -1,21 +1,25 @@
 import { createChapter, createCourse ,createEnrollment,createQuestion,createQuiz,createEnrollmentByGroup} from "../services/course.service.js";
 import { type Request, type Response,type NextFunction } from "express";
 
-export const createCourseController = async (req: Request, res: Response) => {
+export const createCourseController = async (req: Request, res: Response,next:NextFunction) => {
     try {
         const courseData = req.body.validCourse;
         const user = req.user!;
-        const course = await createCourse(courseData, user?.userId);
-        res.status(201).json(course);
+        const file=req.file!;
+        const course = await createCourse(courseData, user?.userId,file);
+        res.status(201).send({
+            success:true,
+            message:"Course created success fully"
+        })
     } catch (error: any) {
-        res.status(400).json({ message: error.message });
+        next(error)
     }
 };
 export const createChapterController = async (req: Request, res: Response) => {
     try {
         const chapterData = req.body.validChapter;
-        const accessToken = req.headers.accesstoken as string;
-        const chapter = await createChapter(chapterData);
+        const file=req.file!;
+        const chapter = await createChapter(chapterData,file);
         res.status(201).json(chapter);
     } catch (error: any) {
         res.status(400).json({ message: error.message });

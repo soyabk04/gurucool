@@ -30,8 +30,7 @@ const courseSchema = new Schema<Course>(
 
         thumbnail: {
             type: String,
-            required: true,
-            match: /^https?:\/\/.+/,
+            required: false,
         },
 
         instructor: {

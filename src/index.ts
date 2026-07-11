@@ -14,14 +14,32 @@ dotenv.config();
 
 const app = express();
 
+
+
+const allowedOrigins = [
+  "http://localhost:5173", // Vite
+  "http://localhost:5500",
+  "http://localhost:4173", // Vite Preview (optional)
+];
+
 app.use(
   cors({
+    origin(origin, callback) {
+      // Allow requests like Postman or curl (no Origin header)
+      if (!origin) {
+        return callback(null, true);
+      }
 
-  "origin": "*",
-  "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
-  "preflightContinue": false,
-  "optionsSuccessStatus": 204
-})
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
 );
 app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies

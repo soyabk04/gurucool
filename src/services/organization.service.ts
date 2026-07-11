@@ -8,13 +8,70 @@ import { hashpass } from "../utils/passwordhash.js";
 import { sendWelcomeEmail } from "../utils/sendemail.js";
 import { emailQueue } from "../queue/email.queue.js";
 import { AppError } from "../errors/AppError.js";
-import { error } from "node:console";
+import { R2Service } from "../utils/cloudflare.js";
 
-const createOrganizationService = async (orgData: organization, admin: User[]) => {
-    try {
-        const organization = new Organizationmodel(orgData);
+const createOrganizationService = async (
+    orgData: organization,
+    admin: User[],
+    file?: Express.Multer.File
+) => {
+    // Validate input
+    if (!admin.length) {
+        throw new AppError(
+            "At least one admin user is required",
+            400,
+            "ADMIN_REQUIRED"
+        );
+    }
+
+    // Check if organization already exists
+    const existingOrganization = await Organizationmodel.findOne({
+        name: orgData.name,
+    });
+
+    if (existingOrganization) {
+        throw new AppError(
+            "Organization already exists",
+            409,
+            "ORGANIZATION_EXISTS"
+        );
+    }
+
+    const organization = new Organizationmodel(orgData);
+    await organization.save();
+
+    if (file) {
+        const key = `organizations/${organization._id}/branding/logo`;
+
+        const uploaded = await R2Service.upload(file, key);
+
+        if (!uploaded) {
+            throw new AppError(
+                "Failed to upload organization logo",
+                500,
+                "LOGO_UPLOAD_FAILED"
+            );
+        }
+
+        organization.logoUrl = key;
         await organization.save();
-        await Promise.all(admin.map(async (user) => {
+    }
+
+    await Promise.all(
+        admin.map(async (user) => {
+            // Check duplicate email
+            const existingUser = await Usermodel.findOne({
+                email: user.email,
+            });
+
+            if (existingUser) {
+                throw new AppError(
+                    `User with email ${user.email} already exists`,
+                    409,
+                    "EMAIL_EXISTS"
+                );
+            }
+
             user.organization = organization._id;
             user.role = "admin";
 
@@ -24,16 +81,25 @@ const createOrganizationService = async (orgData: organization, admin: User[]) =
             const newUser = new Usermodel(user);
             await newUser.save();
 
-            organization.adminUserId = newUser._id;
-            await organization.save();
+            if (!organization.adminUserId) {
+                organization.adminUserId = newUser._id;
+            }
+            const OrgName=organization.name
+            await sendWelcomeEmail(
+                newUser,
+                plainPassword,
+                OrgName
+            );
+        })
+    );
 
-            await sendWelcomeEmail(newUser, plainPassword, organization.name);
-        }));
+    await organization.save();
 
-        return { success: true, organization, message: "Organization and admin users created successfully" }
-    } catch (error: any) {
-        throw new Error(`message: ${error.message}`);
-    }
+    return {
+        success: true,
+        organization,
+        message: "Organization and admin users created successfully",
+    };
 };
 
 const createGroupService = async (

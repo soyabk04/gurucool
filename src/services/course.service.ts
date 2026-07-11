@@ -1,14 +1,17 @@
 import { ATJWTKEY } from "../config/env.config.js";
-import {ChapterModel, CourseModel,QuestionModel,QuizModel,CourseProgressModel,EnrollmentModel} from "../models/course.model.js";
+import { ChapterModel, CourseModel, QuestionModel, QuizModel, CourseProgressModel, EnrollmentModel } from "../models/course.model.js";
 import mongoose from "mongoose";
 import { Usermodel } from "../models/user.model.js";
 import type { Enrollment } from "../types/courses.type.js";
 import type { Chapter, Course, Question, Quiz } from "../types/courses.type.js";
 import { Groupmodel } from "../models/organization.model.js";
+import { R2Service } from "../utils/cloudflare.js";
+import { AppError } from "../errors/AppError.js";
 
 export const createCourse = async (
     courseData: Course,
-    userId: string
+    userId: string,
+    file: Express.Multer.File
 ) => {
     const instructor = await Usermodel.findById(userId);
 
@@ -16,14 +19,41 @@ export const createCourse = async (
         throw new Error("Instructor not found.");
     }
 
-    return await CourseModel.create({
+    const course = await CourseModel.create({
         ...courseData,
         instructor: instructor._id,
     });
+    if (!course) {
+        throw new AppError(
+            "Failed to create Course",
+            500,
+            "FAILED_CREATE_COURSE"
+        );
+    }
+
+    if (file) {
+        const key = `Courses/${course._id}/thumbnail`;
+
+        const uploaded = await R2Service.upload(file, key);
+
+        if (!uploaded) {
+            throw new AppError(
+                "Failed to upload thumbnail of course",
+                500,
+                "THUMBNAIL_UPLOAD_FAILED"
+            );
+        }
+
+        course.thumbnail = key;
+        await course.save();
+    }
+
+
 };
 
 export const createChapter = async (
-    chapterData: Chapter
+    chapterData: Chapter,
+    file: Express.Multer.File
 ) => {
 
     const courseExists = await CourseModel.exists({
@@ -34,8 +64,29 @@ export const createChapter = async (
         throw new Error("Course not found.");
     }
 
-    return await ChapterModel.create(chapterData);
-};
+    const chapter = await ChapterModel.create(chapterData);
+    if (!chapter) {
+        throw new AppError(
+            "Failed to create Course",
+            500,
+            "FAILED_CREATE_CHAPTER"
+        );
+
+    }
+    if (file) {
+        const key = `Courses/${chapter.courseId}/${chapter._id}/video`;
+
+        const uploaded = await R2Service.upload(file, key);
+
+        if (!uploaded) {
+            throw new AppError(
+                "Failed to upload thumbnail of course",
+                500,
+                "THUMBNAIL_UPLOAD_FAILED"
+            );
+        }
+    };
+}
 
 export const createQuestion = async (
     questionsData: Question[]

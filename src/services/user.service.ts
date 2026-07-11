@@ -4,89 +4,115 @@ import { generateOTP } from "../utils/otpgenerator.js";
 import mongoose from "mongoose";
 import { generatePassword } from "../utils/passwordGenerator.js";
 import { sendWelcomeEmail } from "../utils/sendemail.js";
-import  jwt  from "jsonwebtoken"; 
+import jwt from "jsonwebtoken";
 import { Groupmodel } from "../models/organization.model.js";
 import { ATJWTKEY } from "../config/env.config.js";
 import { ErrorCode } from "../errors/ErrorCode.js";
 import { AppError } from "../errors/AppError.js";
 import { emailQueue } from "../queue/email.queue.js";
 
-export const createUser = async (users: any[], userInfo: any, faileditems: any[]) => {
 
-    const createdUsers = [];
-    const failedUser = faileditems;
-    
-    for (const userData of users) {
-      try {
 
-        if (userInfo.role === "admin" && userData.role === "superadmin" || userInfo.role === "coordinator" && (userData.role === "superadmin" || userData.role === "admin")
-          || userInfo.role === "user" && (userData.role === "superadmin" || userData.role === "admin" || userData.role === "coordinator")) {
+export const createUser = async (
+  users: any[],
+  userInfo: any,
+  failedItems: any[]
+) => {
+  const createdUsers = [];
+  const failedUsers = failedItems;
 
-          failedUser.push({
-            user: userData,
-            error: `${userInfo.role} cannot create ${userData.role} users`,
-          });
-          continue;
-        }
+  const organization = await Usermodel.findById(userInfo.userId).populate(
+    "organization"
+  );
 
-        const existingUser = await Usermodel.findOne({
-          email: userData.email,
-        });
-
-        if (existingUser) {
-          failedUser.push({
-            user: userData,
-            error: "Email already exists",
-          });
-          continue;
-        }
-        if (!userData.password) {
-          userData.password = generatePassword();
-        }
-        let pass=userData.password
-        userData.password = await hashpass(
-          pass
-        );
-        let groupId=await Groupmodel.findOne({
-          groupCode: userData.groupCode.toUpperCase(),
-        });
-        if (!groupId) {
-          failedUser.push({
-            user: userData,
-            error: "Group not found",
-          });
-          continue;
-        }
-        userData.groupId = groupId._id;
-
-        const newUser = new Usermodel({ ...userData, createdBy: userInfo.userId });
-        await newUser.save();
-        let organization = await Usermodel.findById(userInfo.userId)
-          .populate("organization");
-        if (!organization?.name) {
-          throw new Error("Organization not found");
-        }
-        let orgName=organization.name
-        await emailQueue.add("welcome-email", {
-  newUser,
-  pass,
-  orgName,
-});
-
-        createdUsers.push(newUser);
-      } catch (error: any) {
-        failedUser.push({
-          user: userData,
-          error: error.message,
-        });
-      }
-    }
-
-    return {
-      createdUsers,
-      failedUsers: failedUser,
-    };
+  if (!organization?.organization) {
+    throw new AppError(
+      "Organization not found",
+      404,
+      "ORGANIZATION_NOT_FOUND"
+    );
   }
+
+  const orgName = organization.name;
+  console.log(orgName)
+
+  for (const userData of users) {
+    try {
+      // Role validation
+      if (
+        (userInfo.role === "admin" && userData.role === "superadmin") ||
+        (userInfo.role === "coordinator" &&
+          ["superadmin", "admin"].includes(userData.role)) ||
+        (userInfo.role === "user" &&
+          ["superadmin", "admin", "coordinator"].includes(userData.role))
+      ) {
+        failedUsers.push({
+          user: userData,
+          error: `${userInfo.role} cannot create ${userData.role} users`,
+        });
+        continue;
+      }
+
+      // Duplicate email
+      const existingUser = await Usermodel.findOne({
+        email: userData.email,
+      });
+
+      if (existingUser) {
+        failedUsers.push({
+          user: userData,
+          error: "Email already exists",
+        });
+        continue;
+      }
+
+      // Password
+      const plainPassword = userData.password || generatePassword();
+      userData.password = await hashpass(plainPassword);
+
+      // Group
+      const group = await Groupmodel.findOne({
+        groupCode: userData.groupCode.toUpperCase(),
+      });
+
+      if (!group) {
+        failedUsers.push({
+          user: userData,
+          error: "Group not found",
+        });
+        continue;
+      }
+
+      userData.groupId = group._id;
+
+      const newUser = new Usermodel({
+        ...userData,
+        createdBy: userInfo.userId,
+      });
+
+      await newUser.save();
+
+      await emailQueue.add("welcome-email", {
+        newUser,
+        pass: plainPassword,
+        orgName,
+      });
+
+      createdUsers.push(newUser);
+    } catch (err) {
+      failedUsers.push({
+        user: userData,
+        error:
+          err instanceof Error ? err.message : "Unknown error occurred",
+      });
+    }
+  }
+
+  return {
+    createdUsers,
+    failedUsers,
+  };
+};
 
 
 
@@ -121,6 +147,8 @@ export const userlogin = async (
   };
 };
 
+
+
 export const getUsers = async (
   userInfo: {
     userId: string;
@@ -130,6 +158,15 @@ export const getUsers = async (
   limit = 10
 ) => {
   const skip = (page - 1) * limit;
+
+  // Validate pagination
+  if (page < 1 || limit < 1) {
+    throw new AppError(
+      "Invalid pagination parameters",
+      400,
+      "INVALID_PAGINATION"
+    );
+  }
 
   if (userInfo.role === "superadmin") {
     const [users, total] = await Promise.all([
@@ -159,12 +196,20 @@ export const getUsers = async (
   );
 
   if (!currentUser) {
-    throw new Error("User not found");
+    throw new AppError(
+      "User not found",
+      404,
+      "USER_NOT_FOUND"
+    );
   }
 
   if (userInfo.role === "admin") {
     if (!currentUser.organization) {
-      throw new Error("Organization not found");
+      throw new AppError(
+        "Organization not found",
+        404,
+        "ORGANIZATION_NOT_FOUND"
+      );
     }
 
     const filter = { organization: currentUser.organization };
@@ -192,7 +237,11 @@ export const getUsers = async (
 
   if (userInfo.role === "coordinator") {
     if (!currentUser.groupId) {
-      throw new Error("Group not found");
+      throw new AppError(
+        "Group not found",
+        404,
+        "GROUP_NOT_FOUND"
+      );
     }
 
     const filter = { groupId: currentUser.groupId };
@@ -218,68 +267,45 @@ export const getUsers = async (
     };
   }
 
-  
+  // Invalid role
+  throw new AppError(
+    "You are not authorized to view users",
+    403,
+    "FORBIDDEN"
+  );
 };
 
 export const verifyUser = async (userId: string, otp: string) => {
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      throw new Error("Invalid user ID");
-    }
-
-    const user = await Usermodel.findById(userId);
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const otpDoc = await Otpmodel.findOne({
-      userId: new mongoose.Types.ObjectId(userId),
-      otp: Number(otp),
-    });
-
-    if (!otpDoc) {
-      throw new Error("Invalid OTP");
-    }
-
-    user.otpverified = true;
-    await user.save();
-
-    await Otpmodel.deleteOne({ _id: otpDoc._id });
-
-    return {
-      message: "User verified successfully",
-      user,
-    };
- 
-};
-
-export const getUserRole = async (userId: string) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      throw new Error("Invalid user ID");
-    }
-
-    const user = await Usermodel.findById(userId);
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    return user.role;
-  } catch (error: any) {
-    throw new Error(`Error fetching user role: ${error.message}`);
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error("Invalid user ID");
   }
-};
-export const checkLogin = async (accesstoken:string)=>{
-    try{
-      const token =jwt.verify(accesstoken,ATJWTKEY) as { userId: string; role: string };
-          if (token){
-        return ({success:true,message:"user is logged in"})
-      }
-    }
 
-    catch(error:any){
-      throw new Error(`Error logging in: ${error.message}`);
-    }
-}
+  const user = await Usermodel.findById(userId);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const otpDoc = await Otpmodel.findOne({
+    userId: new mongoose.Types.ObjectId(userId),
+    otp: Number(otp),
+  });
+
+  if (!otpDoc) {
+    throw new Error("Invalid OTP");
+  }
+
+  user.otpverified = true;
+  await user.save();
+
+  await Otpmodel.deleteOne({ _id: otpDoc._id });
+
+  return {
+    message: "User verified successfully",
+    user,
+  };
+
+};
+
+
