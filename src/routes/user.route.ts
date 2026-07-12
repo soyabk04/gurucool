@@ -38,10 +38,9 @@ userRouter.post(
 );
 
 
-
-
-userRouter.post("/upload", upload.single("file"), uploadFile);
-
-
-userRouter.get("/getusers",authMiddleware, asyncHandler(getUsersController));
+userRouter.get(
+  "/getusers",
+  authMiddleware, 
+  asyncHandler(getUsersController)
+);
 export default userRouter;

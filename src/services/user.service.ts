@@ -114,9 +114,6 @@ export const createUser = async (
   };
 };
 
-
-
-
 export const userlogin = async (
   email: string,
   password: string
@@ -146,8 +143,6 @@ export const userlogin = async (
     user,
   };
 };
-
-
 
 export const getUsers = async (
   userInfo: {
@@ -307,5 +302,7 @@ export const verifyUser = async (userId: string, otp: string) => {
   };
 
 };
+
+
 
 

@@ -52,27 +52,7 @@ const groupSchema = new mongoose.Schema<group>({
         }
 })
 
-const orgPurchaseSchema = new mongoose.Schema<orgPurchase>({
-    organizationId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Organization',
-        required: true
-    },
-    courseId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Course',  
-    },
-    purchaseDate: {
-        type: Date,
-        default: Date.now
-    },
-    amount: {
-        type: Number,
-        required: true
-    }
-})
 
 const Organizationmodel = mongoose.model('Organization', organizationSchema);
-const OrgPurchasemodel = mongoose.model('OrgPurchase', orgPurchaseSchema);
 const Groupmodel= mongoose.model('group',groupSchema)
-export { Organizationmodel, OrgPurchasemodel,Groupmodel };
+export { Organizationmodel,Groupmodel };

@@ -3,16 +3,13 @@ import { type Request, type Response, type NextFunction } from "express";
 
 const createOrganizationController = async (req: Request, res: Response, next: NextFunction) => {
 
-        try {
+
                 const orgData = req.body.validOrg;
                 const admin = req.body.validOrg.users;
                 const file: Express.Multer.File = req.file!
                 orgData.users = undefined
                 const organization = await createOrganizationService(orgData, admin, file);
                 res.status(201).json(organization);
-        } catch (err) {
-                next(err)
-        }
 
 };
 const getOrganizationUsersController = async (req: Request, res: Response) => {

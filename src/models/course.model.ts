@@ -40,11 +40,6 @@ const courseSchema = new Schema<Course>(
             index: true,
         },
 
-        price: {
-            type: Number,
-            required: true,
-            min: 1,
-        },
     },
     {
         timestamps: true,
@@ -111,7 +106,7 @@ const enrollmentSchema = new Schema<Enrollment>(
     userId:{
         type:Schema.Types.ObjectId,
         ref:"User",
-        required:true,
+        required:false,
         index:true
     },
 

@@ -1,4 +1,5 @@
-import { createChapter, createCourse ,createEnrollment,createQuestion,createQuiz,createEnrollmentByGroup} from "../services/course.service.js";
+import { success } from "zod";
+import { createChapter,getMyCourses, createCourse ,getCourse,createEnrollment,createQuestion,createQuiz,createEnrollmentByGroup} from "../services/course.service.js";
 import { type Request, type Response,type NextFunction } from "express";
 
 export const createCourseController = async (req: Request, res: Response,next:NextFunction) => {
@@ -14,6 +15,33 @@ export const createCourseController = async (req: Request, res: Response,next:Ne
     } catch (error: any) {
         next(error)
     }
+};
+export const getCourseController = async (req:Request,res:Response,next:NextFunction)=>
+    {
+        try{
+            const courseId=req.params.courseId!;
+            if(typeof courseId!=="string"){
+            return res.status(400).json({ message: "Invalid email" });
+            };
+            const response= await getCourse(courseId)
+            res.send({
+                success:true,
+                course:response
+            })
+
+        }catch(error:any){
+            next(error)
+        }
+    }
+export const getMyCoursesController = async (
+  req: Request,
+  res: Response
+) => {
+  const userInfo = req.user!;
+
+  const response = await getMyCourses(userInfo);
+
+  return res.status(200).json(response);
 };
 export const createChapterController = async (req: Request, res: Response) => {
     try {

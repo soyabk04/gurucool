@@ -1,4 +1,4 @@
-import { checkLogin, createUser, getUsers } from "../services/user.service.js";
+import { createUser, getUsers } from "../services/user.service.js";
 import { userlogin, verifyUser } from "../services/user.service.js";
 import { type Request, type Response } from "express";
 import { generateToken, generateAccessToken } from "../utils/jwtToken.js";

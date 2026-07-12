@@ -8,7 +8,6 @@ export const errorMiddleware = (
     next: NextFunction
 ) => {
 
-    // console.error(err);
 
     if (err instanceof AppError) {
         return res.status(err.statusCode).json({
@@ -18,7 +17,7 @@ export const errorMiddleware = (
             details: err.details
         });
     }
-
+    console.log(err)
     return res.status(500).json({
         success: false,
         message: "Internal Server Error"

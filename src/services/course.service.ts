@@ -7,6 +7,8 @@ import type { Chapter, Course, Question, Quiz } from "../types/courses.type.js";
 import { Groupmodel } from "../models/organization.model.js";
 import { R2Service } from "../utils/cloudflare.js";
 import { AppError } from "../errors/AppError.js";
+import { Types } from "mongoose"
+import { userInfo } from "node:os";
 
 export const createCourse = async (
     courseData: Course,
@@ -88,6 +90,58 @@ export const createChapter = async (
     };
 }
 
+export const getCourse = async (courseId: string) => {
+
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+        throw new AppError(
+            "Invalid course id",
+            400,
+            "INVALID_COURSE_ID"
+        );
+    }
+    const course = await CourseModel.findById(courseId);
+    if (!course) {
+        throw new AppError(
+            "course not found",
+            404,
+            "COURSE_NOT_FOUND"
+        );
+    }
+
+    const chapters = await ChapterModel.find({
+        courseId: courseId
+    }).select("-courseId")
+        .select("-videoUrl");
+    return {
+        success: true,
+        course,
+        chapters
+    }
+}
+export const getMyCourses = async (userInfo: { userId: string; role: string }) => {
+    console.log(userInfo);
+
+    const myCourses = await EnrollmentModel.find({
+        userId: userInfo.userId,
+    })
+        .populate({
+            path: "courseId",
+            select: "_id title thumbnail",
+        });
+
+    if (myCourses.length === 0) {
+        throw new AppError(
+            "No courses found",
+            404,
+            "COURSE_NOT_FOUND"
+        );
+    }
+    const courses = myCourses.map((enrollment) => enrollment.courseId)
+    return {
+        success: true,
+        data: courses,
+    };
+};
 export const createQuestion = async (
     questionsData: Question[]
 ) => {
