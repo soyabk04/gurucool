@@ -1,5 +1,5 @@
 import { EnrollmentModel } from "../models/course.model.js";
-import { Groupmodel, Organizationmodel, OrgPurchasemodel } from "../models/organization.model.js";
+import { Groupmodel, Organizationmodel, } from "../models/organization.model.js";
 import { Usermodel } from "../models/user.model.js";
 import type { organization, orgPurchase, group } from "../types/organization.type.js";
 import type { User } from "../types/user.type.js";
@@ -16,6 +16,7 @@ const createOrganizationService = async (
     file?: Express.Multer.File
 ) => {
     // Validate input
+    console.log(admin)
     if (!admin.length) {
         throw new AppError(
             "At least one admin user is required",
@@ -84,7 +85,7 @@ const createOrganizationService = async (
             if (!organization.adminUserId) {
                 organization.adminUserId = newUser._id;
             }
-            const OrgName=organization.name
+            const OrgName = organization.name
             await sendWelcomeEmail(
                 newUser,
                 plainPassword,
@@ -102,61 +103,109 @@ const createOrganizationService = async (
     };
 };
 
+export const getOrganization = async () => {
+    const organizations = await Organizationmodel.find().select("name domain");
+
+    const result = await Promise.all(
+        organizations.map(async (org) => ({
+            _id: org._id,
+            name: org.name,
+            domain: org.domain,
+            totalUsers: await Usermodel.countDocuments({
+                organization: org._id,
+            }),
+        }))
+    );
+    return result
+
+
+}
+
 const createGroupService = async (
-    grpData: group,
-    admin: User[],
-    adminData: { userId: string; role: string }
+  grpData: group,
+  coordinator: User[],
+  adminData: { userId: string; role: string }
 ) => {
+    console.log("Group:", grpData);
+  const adminUser = await Usermodel.findById(adminData.userId).select("organization");
+  
+  if (!adminUser?.organization) {
+    throw new AppError(
+      "Organization not found",
+      404,
+      "Group_Problem"
+    );
+  }
 
+  const organization = await Organizationmodel.findById(adminUser.organization);
 
-    const adminUser = await Usermodel.findById(adminData.userId);
-    const orgId = adminUser?.organization;
-    const organization = await Organizationmodel.findById(orgId);
-    grpData.groupCode = grpData.groupCode.toUpperCase();
-    if (!organization) {
-        throw new AppError(
-            "Organization not Found",
-            404,
-            "Group_Problem",
-        );
-    }
+  if (!organization) {
+    throw new AppError(
+      "Organization not found",
+      404,
+      "Group_Problem"
+    );
+  }
 
-    orgId ? (grpData.organization = orgId) : null;
-    const group = await Groupmodel.create(grpData);
-    await Promise.all(admin.map(async (user) => {
-        user.groupId = group._id;
-        user.organization = group.organization;
-        user.role = "coordinator";
+  // Check duplicate email or employee ID
+  const existingUser = await Usermodel.findOne({
+    $or: [
+      { email: coordinator[0].email },
+      { ID: coordinator[0].ID },
+    ],
+  });
 
+  if (existingUser) {
+    throw new AppError(
+      "Coordinator with this email or ID already exists",
+      409,
+      "User_Problem"
+    );
+  }
 
-        const plainPassword = user.password || generatePassword();
-        user.password = await hashpass(plainPassword);
-        const newUser = await Usermodel.create(user);
+  grpData.groupCode = grpData.groupCode.toUpperCase();
+  grpData.organization = organization._id;
 
-        group.coordinator = newUser._id;
-        await group.save();
-        const useremail = user.email;
-        const password = plainPassword
+  // Create group first
+  const group = await Groupmodel.create(grpData);
 
-        let orgName = organization.name
-        console.log(orgName,organization)
-        await emailQueue.add("welcome-email", {
-            user,
-            password,
-            orgName,
-        });
-    })).catch((err) => {
+  // Generate password
+  const plainPassword = generatePassword();
 
-        throw new AppError(
-            "error while creating Group",
-            409,
-            "Group_Problem",
-            err.errmsg
-        );
+  coordinator[0].password = await hashpass(plainPassword);
+  coordinator[0].role = "coordinator";
+  coordinator[0].organization = organization._id;
+  coordinator[0].groupId = group._id;
+console.log(coordinator)
+  // Create coordinator
+  const newCoordinator = await Usermodel.create(coordinator[0]);
+
+  // Update group with coordinator
+  group.coordinator = newCoordinator._id;
+  await group.save();
+
+  // Send welcome email (don't fail the request if email fails)
+  try {
+    await emailQueue.add("welcome-email", {
+      user: coordinator,
+      password: plainPassword,
+      orgName: organization.name,
     });
+  } catch (err) {
+    console.error("Failed to queue welcome email:", err);
+  }
 
-    return { success: true, group, message: "Group and coordinator users created successfully" };
-
+  return {
+    success: true,
+    message: "Group created successfully",
+    group,
+    coordinator: {
+      _id: newCoordinator._id,
+      name: newCoordinator.name,
+      email: newCoordinator.email,
+      ID: newCoordinator.ID,
+    },
+  };
 };
 interface UserWithGroupName extends User {
     groupName?: string;
@@ -186,7 +235,8 @@ const getOrganizationUsersService = async (user1: {
         }
         const users = await Usermodel.find(Id)
             .select("-password").select("-__v").select("-createdAt").select("-updatedAt")
-            .populate("groupId").populate("organization");
+            .populate("groupId").select("_id name groupcode")
+            .populate("organization").select("_id name");
         const userList: UserWithGroupName[] = users.map((user: any) => ({
             ...user.toObject(),
             groupName: user.groupId?.name ?? "",
@@ -205,6 +255,30 @@ const getOrganizationUsersService = async (user1: {
     }
 };
 
+export const getGroup = async (userId: string) => {
+    const user = await Usermodel.findById(userId).select("organization");
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    const groups = await Groupmodel.find({
+        organization: user.organization,
+    }).select("name coordinator").populate("coordinator", "name");;
+
+    const result = await Promise.all(
+        groups.map(async (grp) => ({
+            _id: grp._id,
+            name: grp.name,
+            coordinator: (grp.coordinator as any)?.name,
+            totalUsers: await Usermodel.countDocuments({
+                groupId: grp._id,
+            }),
+        }))
+    );
+
+    return result;
+};
 const getOraganizationConfig = async (hostname: string) => {
     const organization = await Organizationmodel.findOne({ domain: hostname });
     if (!organization) {

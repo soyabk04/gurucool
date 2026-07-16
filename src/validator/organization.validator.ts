@@ -30,7 +30,7 @@ const grpSchema=z.object({
   groupCode:z.string().min(1, "Group code is required")
 })
 
-const organizationValidator=validate(orgSchema,'validOrg')
-const groupValidator=validate(grpSchema,'validGrp')
+const organizationValidator=validate(orgSchema,'organization')
+const groupValidator=validate(grpSchema,'group')
 
 export {organizationValidator,groupValidator}

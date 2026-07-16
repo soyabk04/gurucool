@@ -78,8 +78,8 @@ const chapterSchema = new Schema<Chapter>(
 
         videoUrl: {
             type: String,
-            required: true,
-            match: /^https?:\/\/.+/,
+            required: false,
+
         },
     },
     {
@@ -99,62 +99,148 @@ chapterSchema.index(
 
 
 //   Enrollment
+const OrganizationCourseSchema = new Schema({
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Organization",
+        required: true,
+    },
+    adminId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
+    courseId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Course",
+        required: true,
+    },
+    assignedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
+    assignedAt: {
+        type: Date,
+        default: Date.now,
+    },
+    status: {
+        type: String,
+        enum: ["active", "inactive"],
+        default: "active",
+    },
+});
+
+OrganizationCourseSchema.index(
+    { organizationId: 1, courseId: 1 },
+    { unique: true }
+);
+
+
+const GroupCourseSchema = new Schema(
+    {
+        organizationCourseId: {
+            type: Schema.Types.ObjectId,
+            ref: "OrganizationCourse",
+            required: true,
+        },
+        organizationId: {
+            type: Schema.Types.ObjectId,
+            ref: "Organization",
+            required: true,
+        },
+        groupId: {
+            type: Schema.Types.ObjectId,
+            ref: "group",
+            required: true,
+        },
+        courseId: {
+            type: Schema.Types.ObjectId,
+            ref: "Course",
+            required: true,
+        },
+        assignedBy: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
+        assignedAt: {
+            type: Date,
+            default: Date.now,
+        },
+        status: {
+            type: String,
+            enum: ["active", "inactive"],
+            default: "active",
+        },
+    },
+    { timestamps: true }
+);
+
+GroupCourseSchema.index(
+    {
+        groupId: 1,
+        courseId: 1,
+    },
+    { unique: true }
+);
+
 
 
 const enrollmentSchema = new Schema<Enrollment>(
-{
-    userId:{
-        type:Schema.Types.ObjectId,
-        ref:"User",
-        required:false,
-        index:true
-    },
+    {
+        userId: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: false,
+            index: true
+        },
 
-    courseId:{
-        type:Schema.Types.ObjectId,
-        ref:"Course",
-        required:true,
-        index:true
-    },
+        courseId: {
+            type: Schema.Types.ObjectId,
+            ref: "Course",
+            required: true,
+            index: true
+        },
 
-    organizationId:{
-        type:Schema.Types.ObjectId,
-        ref:"Organization",
-        required:true,
-        index:true
-    },
+        organizationId: {
+            type: Schema.Types.ObjectId,
+            ref: "Organization",
+            required: true,
+            index: true
+        },
 
-    groupId:{
-        type:Schema.Types.ObjectId,
-        ref:"Group",
-        required:true,
-        index:true
-    },
+        groupId: {
+            type: Schema.Types.ObjectId,
+            ref: "Group",
+            required: true,
+            index: true
+        },
 
-    enrolledBy:{
-        type:Schema.Types.ObjectId,
-        ref:"User"
-    },
+        enrolledBy: {
+            type: Schema.Types.ObjectId,
+            ref: "User"
+        },
 
-    status:{
-        type:String,
-        enum:["active","completed"],
-        default:"active"
-    },
+        status: {
+            type: String,
+            enum: ["active", "completed"],
+            default: "active"
+        },
 
-    completedAt:{
-        type:Date
+        completedAt: {
+            type: Date
+        },
+        progress: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 100
+        }
     },
-    progress: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 100
-}
-},
-{
-    timestamps:true
-});
+    {
+        timestamps: true
+    });
 
 enrollmentSchema.index(
     {
@@ -245,7 +331,7 @@ const questionSchema = new Schema<Question>(
 );
 
 questionSchema.path("answer").validate(function (value: string) {
-  return this.options.includes(value);
+    return this.options.includes(value);
 }, "Answer must be one of the options.");
 
 //Course Progress 
@@ -310,6 +396,12 @@ courseProgressSchema.index(
 export const CourseModel =
     models.Course || model<Course>("Course", courseSchema);
 
+export const OrganizationCourse =
+    models.OrganizationCourse || model("OrgEnroll", OrganizationCourseSchema);
+export default mongoose.model("GroupCourse", GroupCourseSchema);
+export const GroupCourse =
+    models.GroupCourse || model("GrpEnroll", GroupCourseSchema);
+
 export const ChapterModel: Model<Chapter> =
     models.Chapter || model<Chapter>("Chapter", chapterSchema);
 
@@ -322,6 +414,6 @@ export const QuizModel: Model<Quiz> =
 export const QuestionModel: Model<Question> =
     models.Question || model<Question>("Question", questionSchema);
 
-export const CourseProgressModel : Model<CourseProgress> =
+export const CourseProgressModel: Model<CourseProgress> =
     models.CourseProgress ||
     model<CourseProgress>("CourseProgress", courseProgressSchema);

@@ -1,21 +1,22 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { ATJWTKEY } from "../config/env.config.js";
+import { generateAccessToken } from "../utils/jwtToken.js"
 
 export const authMiddleware = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
+  const authHeader = req.cookies.accesstoken
+  if (!authHeader) {
     return res.status(401).json({
       success: false,
       message: "Authorization token missing",
     });
   }
 
-  const token = authHeader.split(" ")[1];
+  const token = authHeader;
   if (!token) {
     return res.status(401).json({
       success: false,
@@ -26,7 +27,7 @@ export const authMiddleware = (
   try {
     const decoded = jwt.verify(token, ATJWTKEY) as { userId: string; role: string };
     req.user = decoded;
-    
+
 
     next();
   } catch {
@@ -42,14 +43,15 @@ export const notLoggedIn = (
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-  console.log("authHeader:", authHeader);
-  if (!authHeader) {
-    return next();
+  const accesstoken = req.cookies.accesstoken;
+ 
+
+  if (!accesstoken) {
+     next()
   }
 
   return res.status(400).json({
     success: false,
-    message: "Already logged in",
+    message: "user already logged in",
   });
 };

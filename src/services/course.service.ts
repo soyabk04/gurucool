@@ -1,5 +1,5 @@
 import { ATJWTKEY } from "../config/env.config.js";
-import { ChapterModel, CourseModel, QuestionModel, QuizModel, CourseProgressModel, EnrollmentModel } from "../models/course.model.js";
+import { ChapterModel, GroupCourse, CourseModel, OrganizationCourse, QuestionModel, QuizModel, CourseProgressModel, EnrollmentModel } from "../models/course.model.js";
 import mongoose from "mongoose";
 import { Usermodel } from "../models/user.model.js";
 import type { Enrollment } from "../types/courses.type.js";
@@ -8,7 +8,8 @@ import { Groupmodel } from "../models/organization.model.js";
 import { R2Service } from "../utils/cloudflare.js";
 import { AppError } from "../errors/AppError.js";
 import { Types } from "mongoose"
-import { userInfo } from "node:os";
+import { Organizationmodel } from "../models/organization.model.js";
+
 
 export const createCourse = async (
     courseData: Course,
@@ -49,32 +50,37 @@ export const createCourse = async (
         course.thumbnail = key;
         await course.save();
     }
-
+    return { course }
 
 };
 
 export const createChapter = async (
     chapterData: Chapter,
-    file: Express.Multer.File
+    file?: Express.Multer.File
 ) => {
-
     const courseExists = await CourseModel.exists({
         _id: chapterData.courseId,
     });
 
     if (!courseExists) {
-        throw new Error("Course not found.");
+        throw new AppError(
+            "Course not found",
+            400,
+            "COURSE_NOT_FOUND"
+        );
     }
-
+    const chapters = await ChapterModel.find({ courseId: chapterData.courseId })
+    chapterData.serialNo = chapters.length + 1;
     const chapter = await ChapterModel.create(chapterData);
+
     if (!chapter) {
         throw new AppError(
-            "Failed to create Course",
+            "Failed to create chapter",
             500,
             "FAILED_CREATE_CHAPTER"
         );
-
     }
+
     if (file) {
         const key = `Courses/${chapter.courseId}/${chapter._id}/video`;
 
@@ -82,13 +88,18 @@ export const createChapter = async (
 
         if (!uploaded) {
             throw new AppError(
-                "Failed to upload thumbnail of course",
+                "Failed to upload chapter video",
                 500,
-                "THUMBNAIL_UPLOAD_FAILED"
+                "VIDEO_UPLOAD_FAILED"
             );
         }
-    };
-}
+
+        chapter.videoUrl = key;
+        await chapter.save();
+    }
+
+    return chapter;
+};
 
 export const getCourse = async (courseId: string) => {
 
@@ -244,104 +255,170 @@ export const createEnrollment = async (
         await session.endSession();
     }
 };
+export const getCourses = async (userInfo: { userId: string; role: string }) => {
+    if(userInfo.role=="superadmin"){
+        const courses = await CourseModel.find().select("title _id");
 
-export const createEnrollmentByGroup = async (
-    groupId: string,
-    courseId: string
-) => {
-    const session = await mongoose.startSession();
-
-    try {
-        await session.startTransaction();
-
-        if (!courseId) {
-            throw new Error("Course ID is required.");
-        }
-        if (!groupId) {
-            throw new Error("Group ID is required.");
-        }
-
-        const [users, courseExists, groupDoc] = await Promise.all([
-            Usermodel.find({ groupId }).select("_id").session(session),
-            CourseModel.exists({ _id: courseId }).session(session),
-            Groupmodel.findById(groupId).session(session),
-        ]);
-
-        if (!courseExists) {
-            throw new Error("Course not found.");
-        }
-        if (!groupDoc) {
-            throw new Error("Group not found.");
-        }
-        if (users.length === 0) {
-            throw new Error("No users found for this group.");
-        }
-
-        const userIds = users.map((u) => u._id);
-
-        // Skip users already enrolled in this course
-        const existingEnrollments = await EnrollmentModel.find({
-            userId: { $in: userIds },
-            courseId,
-        })
-            .select("userId")
-            .session(session);
-
-        const alreadyEnrolledIds = new Set(
-            existingEnrollments.map((e) => e.userId.toString())
+        const result = await Promise.all(
+            courses.map(async (course) => ({
+                _id: course._id,
+                title: course.title,
+            }))
         );
-
-        const usersToEnroll = userIds.filter(
-            (userId) => !alreadyEnrolledIds.has(userId.toString())
-        );
-
-        if (usersToEnroll.length === 0) {
-            throw new Error("All users in this group are already enrolled in this course.");
-        }
-
-        const enrollmentDocs = usersToEnroll.map((userId) => ({
-            userId,
-            courseId,
-            groupId,
-            organizationId: groupDoc.organization,
-        }));
-
-        const enrollments = await EnrollmentModel.insertMany(enrollmentDocs, {
-            session,
-        });
-
-        const chapters = await ChapterModel.find({ courseId }).session(session);
-
-        if (chapters.length > 0) {
-            const progressDocs = usersToEnroll.flatMap((userId) =>
-                chapters.map((chapter) => ({
-                    userId,
-                    courseId,
-                    chapterId: chapter._id,
-                    watchedDuration: 0,
-                    completed: false,
-                }))
-            );
-
-            await CourseProgressModel.insertMany(progressDocs, { session });
-        }
-
-        await session.commitTransaction();
-
-        return {
-            enrolledCount: enrollments.length,
-            skippedCount: alreadyEnrolledIds.size,
-            enrollments,
-        };
-    } catch (error: any) {
-        await session.abortTransaction();
-
-        if (error.code === 11000) {
-            throw new Error("One or more users are already enrolled in this course.");
-        }
-
-        throw error;
-    } finally {
-        await session.endSession();
+        return result
     }
+        if(userInfo.role=="admin"){
+        const courses = await OrganizationCourse.find({adminId:userInfo.userId}).select("title _id").populate("courseId");
+
+        const result = await Promise.all(
+            courses.map(async (course) => ({
+                _id: course.courseId._id,
+                title: course.courseId.title,
+            }))
+        );
+        
+        return result
+    }
+
+
+}
+export const assignCourseToGroup = async (
+    groupId: string,
+    courseId: string,
+    userInfo: { userId: string; role: string }
+) => {
+    if (userInfo.role !== "admin") {
+        throw new Error("Only admins can assign courses to groups.");
+    }
+
+    const group = await Groupmodel.findById(groupId);
+
+    if (!group) {
+        throw new Error("Group not found.");
+    }
+
+    const organizationCourse = await OrganizationCourse.findOne({
+        organizationId: group.organization,
+        courseId,
+        status: "active",
+    });
+
+    if (!organizationCourse) {
+        throw new Error(
+            "This course has not been assigned to your organization."
+        );
+    }
+
+    const exists = await GroupCourse.exists({
+        groupId,
+        courseId,
+    });
+
+    if (exists) {
+        throw new Error("Course already assigned to this group.");
+    }
+
+    return GroupCourse.create({
+        organizationCourseId: organizationCourse._id,
+        organizationId: group.organization,
+        groupId,
+        courseId,
+        assignedBy: userInfo.userId,
+    });
 };
+
+
+
+export const assignCourseToOrganization = async (
+    organizationId: string,
+    courseId: string,
+    userInfo: { userId: string; role: string }
+) => {
+    if (userInfo.role !== "superadmin") {
+        throw new Error("Only Super Admin can assign courses.");
+    }
+
+    const [organization, course] = await Promise.all([
+        Organizationmodel.findById(organizationId),
+        CourseModel.findById(courseId),
+    ]);
+
+    if (!organization) {
+        throw new Error("Organization not found.");
+    }
+
+    if (!course) {
+        throw new Error("Course not found.");
+    }
+
+    const alreadyAssigned = await OrganizationCourse.exists({
+        organizationId,
+        courseId,
+    });
+
+    if (alreadyAssigned) {
+        throw new Error("Course is already assigned to this organization.");
+    }
+
+    const assignment = await OrganizationCourse.create({
+        organizationId,
+        adminId: organization.adminUserId, // admin of this organization
+        courseId,
+        assignedBy: userInfo.userId,
+    });
+
+    return assignment;
+};
+export const getassignCourseToOrganization = async (userInfo: { userId: string, role: string }) => {
+    const OrganizationCourses = await OrganizationCourse.find()
+        .populate("courseId organizationId");
+
+    const result = await Promise.all(
+        OrganizationCourses.map(async (OrganizationCourse) => ({
+            _id: OrganizationCourse._id,
+            organizationId: OrganizationCourse.organizationId,
+            courseId: OrganizationCourse.courseId,
+        }))
+    );
+    return result
+
+
+
+}
+
+export const getassignCourseToGroup = async (userInfo: { userId: string, role: string }) => {
+    const user=await Usermodel.findById(userInfo.userId)
+    const OrganizationCourses = await GroupCourse.find({organizationId:user?.organization})
+        .populate("courseId groupId");
+
+    const result = await Promise.all(
+        OrganizationCourses.map(async (OrganizationCourse) => ({
+            _id: OrganizationCourse._id,
+            groupId: OrganizationCourse.groupId,
+            courseId: OrganizationCourse.courseId,
+        }))
+    );
+    console.log(result)
+    return result
+
+
+
+}
+
+export const getOrganizationCourses = async (
+    userInfo: { userId: string, role: string }) => {
+    const OrganizationCourses = await OrganizationCourse.find({adminId:userInfo.userId})
+        .populate("courseId");
+
+    const result = await Promise.all(
+        OrganizationCourses.map(async (OrganizationCourse) => ({
+            
+            title: OrganizationCourse.courseId.title,
+            _id: OrganizationCourse.courseId._id,
+        }))
+    );
+    return result
+
+
+
+}

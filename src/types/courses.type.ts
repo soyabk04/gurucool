@@ -5,7 +5,6 @@ export interface Course {
     description: string;
     thumbnail: string;
     instructor: Types.ObjectId; // Reference to User model
-    price: number;
     createdAt?: Date;
     updatedAt?: Date;
 }

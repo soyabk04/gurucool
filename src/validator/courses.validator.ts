@@ -4,60 +4,58 @@ import { type Request, type Response, type NextFunction } from "express";
 
 
 const objectIdSchema = z
-    .string()
-    .trim()
-    .refine(
-        (id) => mongoose.Types.ObjectId.isValid(id),
-        { message: "Invalid ObjectId" }
-    )
-    .transform((id) => new mongoose.Types.ObjectId(id));
+  .string()
+  .trim()
+  .refine(
+    (id) => mongoose.Types.ObjectId.isValid(id),
+    { message: "Invalid ObjectId" }
+  )
+  .transform((id) => new mongoose.Types.ObjectId(id));
 
 const courseSchema = z.object({
-    title: z.string().min(1, "too short"),
-    description: z.string().min(1, "too short"),
-    thumbnail: z.string().url(),
-    price: z.number().min(1),
+  title: z.string().min(1, "too short"),
+  description: z.string().min(1, "too short"),
 
 });
 const chapterSchema = z.object({
-    serialNo: z.number(),
-    courseId: objectIdSchema,
-    title: z.string(),
-    description: z.string(),
-    videoUrl: z.string().url(),
+  serialNo: z.number().optional(),
+  courseId: z.string(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  videoUrl: z.string().url().optional(),
 
 });
 
 const courseAssignmentSchema = z.object({
-    courseId: objectIdSchema,
-    userId: objectIdSchema,
-    organizationId: objectIdSchema,
-    groupId: objectIdSchema,
-    enrolledBy: objectIdSchema.optional(),
-    progress: z.number().min(0).max(100).optional(),
-    status: z.enum(["active", "completed"]).optional(),
+  courseId: objectIdSchema,
+  userId: objectIdSchema,
+  organizationId: objectIdSchema,
+  groupId: objectIdSchema,
+  enrolledBy: objectIdSchema.optional(),
+  progress: z.number().min(0).max(100).optional(),
+  status: z.enum(["active", "completed"]).optional(),
 
 });
 
 const quizSchema = z.object({
-    chapterId: objectIdSchema,
-    userId: objectIdSchema,
+  chapterId: objectIdSchema,
+  userId: objectIdSchema,
 })
 const questionSchema = z.object({
-    quizId: objectIdSchema,
+  quizId: objectIdSchema,
 
-    question: z.string().trim().min(1, "Question is required"),
+  question: z.string().trim().min(1, "Question is required"),
 
-    options: z
-        .array(z.string().trim().min(1, "Option cannot be empty"))
-        .length(4, "Exactly 4 options are required"),
+  options: z
+    .array(z.string().trim().min(1, "Option cannot be empty"))
+    .length(4, "Exactly 4 options are required"),
 
-    answer: z.string().trim().min(1, "Answer is required"),
+  answer: z.string().trim().min(1, "Answer is required"),
 
-    marks: z
-        .number()
-        .int()
-        .positive("Marks must be greater than 0"),
+  marks: z
+    .number()
+    .int()
+    .positive("Marks must be greater than 0"),
 });
 const courseProgressSchema = z.object({
   userId: objectIdSchema,
@@ -74,27 +72,52 @@ const courseProgressSchema = z.object({
   completed: z.boolean(),
 });
 
+
+
 export const validate =
-    (schema: z.ZodType, key: string) =>
-        (req: Request, res: Response, next: NextFunction) => {
-            const result = schema.safeParse(req.body);
+  (schema: z.ZodTypeAny, key: string) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const payload = req.body[key];
+      
+      if (!payload) {
+        return res.status(400).json({
+          success: false,
+          message: `${key} is required`,
+        });
+      }
 
-            if (!result.success) {
-                return res.status(400).json({
-                    success: false,
-                    errors: result.error.issues,
-                });
-            }
+      const parsed =
+        typeof payload === "string"
+          ? JSON.parse(payload)
+          : payload;
+     
+      const result = schema.safeParse(parsed);
+      
+      if (!result.success) {
+       
+        return res.status(400).json({
+          success: false,
+          errors: result.error.issues,
+        });
+      }
 
-            req.body[key] = result.data;
+      req.body[key] = result.data;
+      console.log(req.body[key])
+      next();
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid JSON format",
+      });
+    }
+  };
 
-            next();
-        };
-
-export const validateMultiple =(schema: z.ZodTypeAny, key: string) =>
+export const validateMultiple = (schema: z.ZodTypeAny, key: string) =>
   (req: Request, res: Response, next: NextFunction) => {
 
-    const items = req.body[key];
+    const items = req.body;
+    console.log(req.body)
     if (!Array.isArray(items)) {
       return res.status(400).json({
         success: false,
@@ -106,7 +129,7 @@ export const validateMultiple =(schema: z.ZodTypeAny, key: string) =>
     const errors = [];
 
     for (let i = 0; i < items.length; i++) {
-  
+
       const result = schema.safeParse(items[i]);
 
       if (result.success) {
@@ -138,16 +161,16 @@ const courseProgressValidator = validate(
 );
 
 const courseValidator =
-    validate(courseSchema, "validCourse");
+  validate(courseSchema, "course");
 
 const chapterValidator =
-    validate(chapterSchema, "validChapter");
+  validate(chapterSchema, "chapter");
 
 const Assignmentvalidator =
-    validate(courseAssignmentSchema, "validAssignment");
+  validate(courseAssignmentSchema, "validAssignment");
 const quizValidator =
-    validate(quizSchema, "validQuiz");
+  validate(quizSchema, "validQuiz");
 
 const questionValidator =
-    validateMultiple(questionSchema, "validQuestions");
-export { courseValidator, chapterValidator,courseProgressValidator, Assignmentvalidator, quizValidator, questionValidator };
+  validateMultiple(questionSchema, "validQuestions");
+export { courseValidator, chapterValidator, courseProgressValidator, Assignmentvalidator, quizValidator, questionValidator };

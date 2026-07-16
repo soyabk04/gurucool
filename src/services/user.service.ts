@@ -10,6 +10,7 @@ import { ATJWTKEY } from "../config/env.config.js";
 import { ErrorCode } from "../errors/ErrorCode.js";
 import { AppError } from "../errors/AppError.js";
 import { emailQueue } from "../queue/email.queue.js";
+import { success } from "zod";
 
 
 
@@ -34,10 +35,10 @@ export const createUser = async (
   }
 
   const orgName = organization.name;
-  console.log(orgName)
 
   for (const userData of users) {
     try {
+      userData.organization=organization.organization._id;
       // Role validation
       if (
         (userInfo.role === "admin" && userData.role === "superadmin") ||
@@ -302,6 +303,19 @@ export const verifyUser = async (userId: string, otp: string) => {
   };
 
 };
+
+export const checkLogin=(accesstoken:string)=>{
+
+     const token=jwt.verify(accesstoken,ATJWTKEY);
+     if(!token){
+      throw new AppError(
+      "Invalid token",
+      401,
+      "INVALID_ACCESSTOKEN"
+    );
+     }
+    return {success:true,message:"valid token"}
+}
 
 
 

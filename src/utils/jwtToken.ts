@@ -1,15 +1,15 @@
 import jwt from "jsonwebtoken";
 import { ATJWTKEY,RTJWTKEY } from "../config/env.config.js";
 
-const generateToken = (payload: object): { accessToken: string; refreshToken: string } => {
-       const accessToken = jwt.sign(payload, ATJWTKEY, { expiresIn: "15m" });
-       const refreshToken = jwt.sign(payload, RTJWTKEY, { expiresIn: "7d" });
-       return { accessToken, refreshToken };
+const generateToken = (payload: object): { accesstoken: string; refreshtoken: string } => {
+       const accesstoken = jwt.sign(payload, ATJWTKEY, { expiresIn: "15m" });
+       const refreshtoken = jwt.sign(payload, RTJWTKEY, { expiresIn: "7d" });
+       return { accesstoken, refreshtoken };
 }
-const generateAccessToken = (refreshToken: any) => {
+const generateAccessToken = (refreshtoken: string) => {
     let decoded: any;
     try {
-        decoded = jwt.verify(refreshToken, RTJWTKEY);
+        decoded = jwt.verify(refreshtoken, RTJWTKEY);
         let { userId, role } = decoded;
         decoded = { userId, role };
     } catch (error) {
