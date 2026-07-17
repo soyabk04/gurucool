@@ -6,14 +6,14 @@ import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { type Request, type Response } from "express";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { bulkUploadUsers } from "../controller/user.controller.js";
-import { upload } from "../middleware/upload.middleware.js";
+import { upload, uploadCsv } from "../middleware/upload.middleware.js";
 import { uploadFile } from "../controller/upload.controller.js";
 
 
 const userRouter = Router();
 
 userRouter.post("/createuser",authMiddleware,authorizeRoles("superadmin", "admin","coordinator"), userSignupValidator, asyncHandler(createUserController));
-userRouter.post("/login", userSigninValidator, asyncHandler(userLoginController));
+userRouter.post("/login", notLoggedIn, userSigninValidator, asyncHandler(userLoginController));
 userRouter.post("/accesstoken", asyncHandler(generateAccessTokenController));
 userRouter.post("/verify",asyncHandler(otpVerificationController) );
 userRouter.get("/isloggedin", authMiddleware, (req, res) => {
@@ -33,10 +33,17 @@ userRouter.post("/logout", authMiddleware, asyncHandler(logoutUser));
 userRouter.post(
   "/csvparse",
   authMiddleware,authorizeRoles('superadmin','admin','coordinator'),
-  upload.single("file"),
-  bulkUploadUsers
+  uploadCsv.single("file"),
+  asyncHandler(bulkUploadUsers)
 );
 
+
+userRouter.post(
+  "/upload",
+  authMiddleware,
+  upload.single("file"),
+  asyncHandler(uploadFile)
+);
 
 userRouter.get(
   "/getusers",

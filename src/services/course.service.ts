@@ -9,6 +9,8 @@ import { R2Service } from "../utils/cloudflare.js";
 import { AppError } from "../errors/AppError.js";
 import { Types } from "mongoose"
 import { Organizationmodel } from "../models/organization.model.js";
+import { error } from "node:console";
+import { getVideoStreamUrl } from "../utils/getVideoUrl.js";
 
 
 export const createCourse = async (
@@ -130,7 +132,6 @@ export const getCourse = async (courseId: string) => {
     }
 }
 export const getMyCourses = async (userInfo: { userId: string; role: string }) => {
-    console.log(userInfo);
 
     const myCourses = await EnrollmentModel.find({
         userId: userInfo.userId,
@@ -188,71 +189,93 @@ export const createQuiz = async (
 
     return await QuizModel.create(quizData);
 };
-
-export const createEnrollment = async (
-    enrollmentData: Enrollment
+interface AssignCourseDto {
+    courseId: string;
+    userIds: string[];
+}
+export const assignCourseToUsers = async (
+    data: AssignCourseDto,
+    coordinatorId: string
 ) => {
     const session = await mongoose.startSession();
 
     try {
-        await session.startTransaction();
+        
+console.log('course')
+        const course = await CourseModel.findById(data.courseId);
 
-        if (!enrollmentData.courseId) {
-            throw new Error("Course ID is required.");
-        }
-
-        const [userExists, courseExists] = await Promise.all([
-            Usermodel.exists({ _id: enrollmentData.userId }).session(session),
-            CourseModel.exists({ _id: enrollmentData.courseId }).session(session),
-        ]);
-
-        if (!userExists) {
-            throw new Error("User not found.");
-        }
-
-        if (!courseExists) {
+        console.log('course')
+        if (!course) {
             throw new Error("Course not found.");
         }
 
-        const chapters = await ChapterModel.find({
-            courseId: enrollmentData.courseId,
-        }).session(session);
+        const users = await Usermodel.find({
+            _id: { $in: data.userIds },
+        });
 
-        const [enrollment] = await EnrollmentModel.create(
-            [enrollmentData],
-            { session }
-        );
-
-        if (!enrollment) {
-            throw new Error("Enrollment failed. Please try again.");
+        if (users.length !== data.userIds.length) {
+            throw new Error("Some users do not exist.");
         }
 
-        if (chapters.length > 0) {
-            await CourseProgressModel.insertMany(
-                chapters.map((chapter) => ({
-                    userId: enrollmentData.userId,
-                    courseId: enrollmentData.courseId,
+        const chapters = await ChapterModel.find({
+            courseId: data.courseId,
+        });
+
+        const existingEnrollments = await EnrollmentModel.find({
+            courseId: data.courseId,
+            userId: { $in: data.userIds },
+        });
+
+        const enrolledIds = new Set(
+            existingEnrollments.map((e) => e.userId.toString())
+        );
+
+        const enrollments = users
+            .filter((user) => !enrolledIds.has(user._id.toString()))
+            .map((user) => ({
+                userId: user._id,
+                courseId: data.courseId,
+                organizationId: user.organization,
+                groupId: user.groupId,
+                enrolledBy: coordinatorId,
+                status: "active",
+                progress: 0,
+            }));
+
+        if (enrollments.length === 0) {
+            throw new Error("All selected users are already enrolled.");
+        }
+
+        await EnrollmentModel.insertMany(enrollments);
+
+        const progressDocs = [];
+
+        for (const enrollment of enrollments) {
+            for (const chapter of chapters) {
+                progressDocs.push({
+                    userId: enrollment.userId,
+                    courseId: enrollment.courseId,
                     chapterId: chapter._id,
                     watchedDuration: 0,
                     completed: false,
-                })),
-                { session }
-            );
+                });
+            }
         }
 
-        await session.commitTransaction();
-
-        return enrollment;
-    } catch (error: any) {
-        await session.abortTransaction();
-
-        if (error.code === 11000) {
-            throw new Error("User is already enrolled in this course.");
+        if (progressDocs.length > 0) {
+            await CourseProgressModel.insertMany(progressDocs);
         }
 
+        
+
+        return {
+            assigned: enrollments.length,
+        };
+    } catch (error) {
+        
         throw error;
     } finally {
-        await session.endSession();
+        
     }
 };
 export const getCourses = async (userInfo: { userId: string; role: string }) => {
@@ -263,11 +286,13 @@ export const getCourses = async (userInfo: { userId: string; role: string }) => 
             courses.map(async (course) => ({
                 _id: course._id,
                 title: course.title,
+                thumbnail:course.thumbnail,
             }))
         );
         return result
     }
         if(userInfo.role=="admin"){
+
         const courses = await OrganizationCourse.find({adminId:userInfo.userId}).select("title _id").populate("courseId");
 
         const result = await Promise.all(
@@ -279,6 +304,38 @@ export const getCourses = async (userInfo: { userId: string; role: string }) => 
         
         return result
     }
+            if(userInfo.role=="coordinator"){
+                let groupId=await Usermodel.findById(userInfo.userId)
+        const courses = await GroupCourse.find({groupId:groupId?.groupId})
+        
+        .select("title _id").populate("courseId");
+
+        const result = await Promise.all(
+            courses.map(async (course) => ({
+                _id: course.courseId._id,
+                title: course.courseId.title,
+                thumbnail: course.courseId.thumbnail
+            }))
+        );
+        
+        return result
+    }
+if (userInfo.role === "user") {
+const enrollments = await EnrollmentModel.find({ userId: userInfo.userId })
+    .populate("courseId", "title thumbnail")
+    .lean();
+
+const typedEnrollments = enrollments as unknown as any[];
+
+const result = typedEnrollments
+    .filter((enrollment) => enrollment.courseId)
+    .map((enrollment) => ({
+        _id: enrollment.courseId!._id,
+        title: enrollment.courseId!.title,
+        thumbnail: enrollment.courseId!.thumbnail
+    }));
+    return result 
+}
 
 
 }
@@ -290,7 +347,7 @@ export const assignCourseToGroup = async (
     if (userInfo.role !== "admin") {
         throw new Error("Only admins can assign courses to groups.");
     }
-
+    
     const group = await Groupmodel.findById(groupId);
 
     if (!group) {
@@ -398,7 +455,6 @@ export const getassignCourseToGroup = async (userInfo: { userId: string, role: s
             courseId: OrganizationCourse.courseId,
         }))
     );
-    console.log(result)
     return result
 
 
@@ -421,4 +477,34 @@ export const getOrganizationCourses = async (
 
 
 
+}
+
+export const getChapter = async (chapterId:string,userInfo:{userId:string,role:string})=>{
+    const chapter= await ChapterModel.findById(chapterId);
+    if(userInfo.role=='coordinator'){
+        const user=await Usermodel.findById(userInfo.userId);
+        const courseEn=await GroupCourse.find({courseId:chapter?.courseId,groupId:user?.groupId});
+        if(!courseEn){
+            throw new Error("you dont have permission");
+        }
+        const url=await getVideoStreamUrl(chapter!.videoUrl)
+        return{
+            id:chapter?._id,
+            title:chapter?.title,
+            videoUrl:url
+        }
+    }
+        if(userInfo.role=='user'){
+        const user=await Usermodel.findById(userInfo.userId);
+        const courseEn=await EnrollmentModel.find({courseId:chapter?.courseId,userId:user?._id});
+        if(!courseEn){
+            throw new Error("you dont have permission");
+        }
+        const url=await getVideoStreamUrl(chapter!.videoUrl);
+        return{
+            id:chapter?._id,
+            title:chapter?.title,
+            videoUrl:url
+        }
+    }
 }

@@ -6,7 +6,6 @@ export const authorizeRoles = (...roles: string[]) => {
     res: Response,
     next: NextFunction
   ) => {
-     console.log("authHeader")
     if (!req.user) {
       return res.status(401).json({
         success: false,

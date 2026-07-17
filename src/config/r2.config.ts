@@ -14,7 +14,4 @@ export const r2Client = new S3Client({
 });
 
 
-if(!r2Client){
-    console.log("err2")
-}
 export const R2_BUCKET = process.env.R2_BUCKET!;

@@ -7,6 +7,7 @@ import userRouter from './routes/user.route.js';
 import courseRouter from './routes/course.route.js';
 import cors from "cors";
 import "./workers/email.worker.js";
+import {getVideoStreamUrl} from "./utils/getVideoUrl.js"
 import { organizationRouter } from './routes/organization.route.js';
 import { analyticsRouter } from './routes/analytics.routes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
@@ -43,8 +44,6 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies
-
-
 app.use("/api/auth", userRouter); // Import and use user routes
 app.use('/api/courses', courseRouter); // Import and use course routes
 app.use('/api/organization', organizationRouter);

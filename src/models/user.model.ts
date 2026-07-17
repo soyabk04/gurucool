@@ -51,6 +51,10 @@ const otpSchema = new mongoose.Schema<Otp>({
     otp: {
         type: Number,
         required: true
+    },
+    attempts: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 otpSchema.index({ createdAt: 1 }, { expireAfterSeconds: 3600 });

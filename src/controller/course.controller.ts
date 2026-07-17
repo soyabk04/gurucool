@@ -1,55 +1,55 @@
-import { createChapter,getMyCourses,getOrganizationCourses, getassignCourseToOrganization,createCourse ,getCourse,createEnrollment,createQuestion,createQuiz, assignCourseToGroup, assignCourseToOrganization, getCourses, getassignCourseToGroup} from "../services/course.service.js";
-import { type Request, type Response,type NextFunction } from "express";
+import { createChapter, assignCourseToUsers, getMyCourses, getChapter, getOrganizationCourses, getassignCourseToOrganization, createCourse, getCourse, createQuestion, createQuiz, assignCourseToGroup, assignCourseToOrganization, getCourses, getassignCourseToGroup } from "../services/course.service.js";
+import { type Request, type Response, type NextFunction } from "express";
 
 
-export const createCourseController = async (req: Request, res: Response,next:NextFunction) => {
+export const createCourseController = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const courseData = req.body.course;
         const user = req.user!;
-        const file=req.file!;
-        const course = await createCourse(courseData, user.userId,file);
+        const file = req.file!;
+
+        const course = await createCourse(courseData, user.userId, file);
         res.status(201).send({
-            success:true,
+            success: true,
             course,
-            message:"Course created success fully"
+            message: "Course created success fully"
         })
     } catch (error: any) {
         next(error)
     }
 };
-export const getCourseController = async (req:Request,res:Response,next:NextFunction)=>
-    {
-        try{
-            const courseId=req.params.courseId!;
-            if(typeof courseId!=="string"){
+export const getCourseController = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const courseId = req.params.courseId!;
+        if (typeof courseId !== "string") {
             return res.status(400).json({ message: "Invalid email" });
-            };
-            const response= await getCourse(courseId)
-            res.send({
-                success:true,
-                course:response
-            })
+        };
+        const response = await getCourse(courseId)
+        res.send({
+            success: true,
+            course: response
+        })
 
-        }catch(error:any){
-            next(error)
-        }
+    } catch (error: any) {
+        next(error)
     }
+}
 export const getMyCoursesController = async (
-  req: Request,
-  res: Response
+    req: Request,
+    res: Response
 ) => {
-  const userInfo = req.user!;
+    const userInfo = req.user!;
 
-  const response = await getMyCourses(userInfo);
+    const response = await getMyCourses(userInfo);
 
-  return res.status(200).json(response);
+    return res.status(200).json(response);
 };
 export const createChapterController = async (req: Request, res: Response) => {
 
-        const chapterData = req.body.chapter;
-        const file=req.file!;
-        const chapter = await createChapter(chapterData,file);
-        res.status(201).json(chapter);
+    const chapterData = req.body.chapter;
+    const file = req.file!;
+    const chapter = await createChapter(chapterData, file);
+    res.status(201).json(chapter);
 
 };
 export const createQuizController = async (req: Request, res: Response) => {
@@ -72,25 +72,35 @@ export const createQuestionController = async (req: Request, res: Response) => {
     }
 };
 
-export const createEnrollmentController = async (req: Request, res: Response) => {
+export const assignCourseToUsersController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
     try {
-        const enrollmentData = req.body.validAssignment;
-        const enrollment = await createEnrollment(enrollmentData);
-        res.status(201).json(enrollment);
-    } catch (error: any) {
-        res.status(400).json({ message: error.message });
+        const result = await assignCourseToUsers(
+            req.body,
+            req.user!.userId
+        );
+
+        res.status(201).json({
+            success: true,
+            data: result,
+        });
+    } catch (err) {
+        next(err);
     }
 };
-export const getCoursesController= async (req:Request,res:Response)=>{
-        const user=req.user!;
-        
-        const response=await getCourses(user)
-        if(response){
-           res.send({
-                success:true,
-                res:response
-           })
-        }
+export const getCoursesController = async (req: Request, res: Response) => {
+    const user = req.user!;
+
+    const response = await getCourses(user)
+    if (response) {
+        res.send({
+            success: true,
+            res: response
+        })
+    }
 }
 
 export const enrollGroupController = async (
@@ -100,7 +110,8 @@ export const enrollGroupController = async (
 ) => {
     try {
         const { groupId, courseId } = req.body;
-        const userInfo =req.user!
+        const userInfo = req.user!
+        console.log(groupId)
         if (!groupId || !courseId) {
             return res.status(400).json({
                 success: false,
@@ -108,7 +119,8 @@ export const enrollGroupController = async (
             });
         }
 
-        const result = await assignCourseToGroup(groupId, courseId,userInfo);
+        const result = await assignCourseToGroup(groupId, courseId, userInfo);
+
 
         return res.status(201).json({
             success: true,
@@ -125,7 +137,7 @@ export const enrollGroupController = async (
             "All users in this group are already enrolled in this course.",
             "One or more users are already enrolled in this course.",
         ];
-
+        console.log(error)
         if (knownErrors.includes(error.message)) {
             return res.status(400).json({
                 success: false,
@@ -133,7 +145,7 @@ export const enrollGroupController = async (
             });
         }
 
-        next(error);
+
     }
 };
 export const enrollOrgController = async (
@@ -143,7 +155,7 @@ export const enrollOrgController = async (
 ) => {
     try {
         const { organizationId, courseId } = req.body;
-        const userInfo =req.user!
+        const userInfo = req.user!
         if (!organizationId || !courseId) {
             return res.status(400).json({
                 success: false,
@@ -151,7 +163,7 @@ export const enrollOrgController = async (
             });
         }
 
-        const result = await assignCourseToOrganization(organizationId, courseId,userInfo);
+        const result = await assignCourseToOrganization(organizationId, courseId, userInfo);
 
         return res.status(201).json({
             success: true,
@@ -186,8 +198,8 @@ export const getEnrollOrgController = async (
     next: NextFunction
 ) => {
     try {
-        
-        const userInfo =req.user!
+
+        const userInfo = req.user!
 
 
         const result = await getassignCourseToOrganization(userInfo);
@@ -224,8 +236,8 @@ export const getEnrollGrpController = async (
     next: NextFunction
 ) => {
     try {
-        
-        const userInfo =req.user!
+
+        const userInfo = req.user!
 
 
         const result = await getassignCourseToGroup(userInfo);
@@ -256,14 +268,43 @@ export const getEnrollGrpController = async (
         next(error);
     }
 };
+
+
+export const getChapterController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user = req.user!;
+
+    const chapterId = Array.isArray(req.params.chapterId)
+      ? req.params.chapterId[0]
+      : req.params.chapterId;
+
+    if (!chapterId) {
+      return res.status(400).json({
+        success: false,
+        message: "Chapter ID is required",
+      });
+    }
+
+    const response = await getChapter(chapterId, user);
+
+    return res.status(200).json(response,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
 export const getOrganizationCoursesController = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
     try {
-        
-        const userInfo =req.user!
+
+        const userInfo = req.user!
 
 
         const result = await getOrganizationCourses(userInfo);

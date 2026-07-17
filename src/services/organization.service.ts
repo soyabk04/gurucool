@@ -16,7 +16,6 @@ const createOrganizationService = async (
     file?: Express.Multer.File
 ) => {
     // Validate input
-    console.log(admin)
     if (!admin.length) {
         throw new AppError(
             "At least one admin user is required",
@@ -126,7 +125,6 @@ const createGroupService = async (
   coordinator: User[],
   adminData: { userId: string; role: string }
 ) => {
-    console.log("Group:", grpData);
   const adminUser = await Usermodel.findById(adminData.userId).select("organization");
   
   if (!adminUser?.organization) {
@@ -176,7 +174,6 @@ const createGroupService = async (
   coordinator[0].role = "coordinator";
   coordinator[0].organization = organization._id;
   coordinator[0].groupId = group._id;
-console.log(coordinator)
   // Create coordinator
   const newCoordinator = await Usermodel.create(coordinator[0]);
 
@@ -187,7 +184,7 @@ console.log(coordinator)
   // Send welcome email (don't fail the request if email fails)
   try {
     await emailQueue.add("welcome-email", {
-      user: coordinator,
+      user: coordinator[0],
       password: plainPassword,
       orgName: organization.name,
     });

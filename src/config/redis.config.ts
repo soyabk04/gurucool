@@ -1,7 +1,6 @@
-import IORedis from "ioredis";
+import { Redis } from '@upstash/redis'
+export const connection = new Redis({
+  url: 'https://casual-mammal-175000.upstash.io',
+  token: 'gQAAAAAAAquYAAIgcDJlMmU2NzE4NzQ5MTE0MjliOTRjMjY1OGU2MGU5ZmU4Mg',
+})
 
-export const connection = new IORedis.default({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: Number(process.env.REDIS_PORT) || 6379,
-  maxRetriesPerRequest: null,
-});

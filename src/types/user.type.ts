@@ -17,6 +17,7 @@ export interface User {
 export interface Otp {
     userId: Types.ObjectId;
     otp: number;
+    attempts?: number;
 }
 
 export interface RolesRequest extends Request {

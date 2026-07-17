@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { ATJWTKEY } from "../config/env.config.js";
-import { generateAccessToken } from "../utils/jwtToken.js"
 
 export const authMiddleware = (
   req: Request,
@@ -9,6 +8,7 @@ export const authMiddleware = (
   next: NextFunction
 ) => {
   const authHeader = req.cookies.accesstoken
+
   if (!authHeader) {
     return res.status(401).json({
       success: false,
@@ -27,7 +27,7 @@ export const authMiddleware = (
   try {
     const decoded = jwt.verify(token, ATJWTKEY) as { userId: string; role: string };
     req.user = decoded;
-
+     
 
     next();
   } catch {
@@ -44,10 +44,9 @@ export const notLoggedIn = (
   next: NextFunction
 ) => {
   const accesstoken = req.cookies.accesstoken;
- 
 
   if (!accesstoken) {
-     next()
+    return next();
   }
 
   return res.status(400).json({

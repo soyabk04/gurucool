@@ -398,7 +398,6 @@ export const CourseModel =
 
 export const OrganizationCourse =
     models.OrganizationCourse || model("OrgEnroll", OrganizationCourseSchema);
-export default mongoose.model("GroupCourse", GroupCourseSchema);
 export const GroupCourse =
     models.GroupCourse || model("GrpEnroll", GroupCourseSchema);
 

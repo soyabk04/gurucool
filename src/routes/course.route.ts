@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createChapterController,getCoursesController, getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,createEnrollmentController, enrollGroupController, getCourseController, enrollOrgController } from "../controller/course.controller.js";
+import { createChapterController,getCoursesController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController } from "../controller/course.controller.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { authMiddleware } from "../middleware/authentication.middleware.js";
 import { Assignmentvalidator, chapterValidator, courseValidator, questionValidator, quizValidator } from "../validator/courses.validator.js";
@@ -20,6 +20,7 @@ courseRouter.post(
 courseRouter.post(
     "/chapter",
      authMiddleware, 
+     authorizeRoles("superadmin", "admin"),
      upload.single('file'),
      chapterValidator
      ,asyncHandler(createChapterController)
@@ -27,26 +28,27 @@ courseRouter.post(
 courseRouter.post(
     "/quiz", 
     authMiddleware,
+    authorizeRoles("superadmin", "admin"),
      quizValidator,
       createQuizController
     );
 courseRouter.post(
     "/question",
      authMiddleware, 
+     authorizeRoles("superadmin", "admin"),
      questionValidator, 
      createQuestionController
     );
 courseRouter.post(
     "/enroll", 
     authMiddleware,
-    authorizeRoles("superadmin", "admin"), 
-    Assignmentvalidator, 
-    createEnrollmentController
+    authorizeRoles("superadmin", "admin",'coordinator'), 
+    assignCourseToUsersController
 )
 
 courseRouter.get("/cour",
     authMiddleware,
-    authorizeRoles('superadmin','admin'),
+    authorizeRoles('superadmin','admin','coordinator','user'),
     getCoursesController
 )
 
@@ -87,4 +89,10 @@ courseRouter.get(
     asyncHandler(getMyCoursesController)
 );
 
+courseRouter.get(
+    "/chapter/:chapterId",
+    authMiddleware,
+    authorizeRoles('coordinator','user'),
+    getChapterController
+)
 export default courseRouter;

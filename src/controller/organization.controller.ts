@@ -1,6 +1,6 @@
-import { success } from "zod";
 import { createOrganizationService, createGroupService, getOrganizationUsersService, getOrganization, getGroup } from "../services/organization.service.js";
 import { type Request, type Response, type NextFunction } from "express";
+import { AppError } from "../errors/AppError.js";
 
 const createOrganizationController = async (req: Request, res: Response, next: NextFunction) => {
 
@@ -16,33 +16,28 @@ const createOrganizationController = async (req: Request, res: Response, next: N
 
 };
 const getOrganizationController= async (req:Request,res:Response)=>{
-        const user=req.user;
         const response=await getOrganization()
-        if(response){
-           res.send({
+        res.send({
                 success:true,
                 res:response
-           })
-        }
+        })
 }
 const getGroupController= async (req:Request,res:Response,next:NextFunction)=>{
-        const user=req.user!;
+        const user=req.user;
         if(!user){
-           next()
+           return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
         }
-        const response=await getGroup(user?.userId)
-        if(response){
-           res.send({
+        const response=await getGroup(user.userId)
+        res.send({
                 success:true,
                 res:response
-           })
-        }
+        })
 }
 const getOrganizationUsersController = async (req: Request, res: Response) => {
 
         const user = req.user;
         if (!user) {
-                throw new Error("User not found");
+                throw new AppError("User not found", 401, "UNAUTHORIZED");
         }
         const users = await getOrganizationUsersService(user);
         res.status(200).json(users);
@@ -55,7 +50,7 @@ const createGroupController = async (req: Request, res: Response) => {
         const coordinators = req.body.group.users;
         const adminData = req.user
         if (!adminData) {
-                throw new Error("Admin user data not found");
+                throw new AppError("Admin user data not found", 401, "UNAUTHORIZED");
         }
         const group = await createGroupService(grpData, coordinators, adminData);
         res.status(201).json(group);

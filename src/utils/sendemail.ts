@@ -121,8 +121,6 @@ try {
 
 export const sendWelcomeEmail=async (user:any,password:string,orgName:string)=>{
   
-  console.log(orgName)
-
   const emailBody = template
   .replace("{{name}}", user.name)
   .replace("{{email}}", user.email)

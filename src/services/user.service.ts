@@ -10,7 +10,6 @@ import { ATJWTKEY } from "../config/env.config.js";
 import { ErrorCode } from "../errors/ErrorCode.js";
 import { AppError } from "../errors/AppError.js";
 import { emailQueue } from "../queue/email.queue.js";
-import { success } from "zod";
 
 
 
@@ -34,7 +33,11 @@ export const createUser = async (
     );
   }
 
-  const orgName = organization.name;
+  // `organization` here is the *creating user's* document (populated with
+  // their organization). `organization.name` is that user's own name field,
+  // not the organization's name — the org's name lives on the populated
+  // `organization.organization` sub-document.
+  const orgName = (organization.organization as any).name;
 
   for (const userData of users) {
     try {
@@ -94,15 +97,25 @@ export const createUser = async (
       await newUser.save();
 
       await emailQueue.add("welcome-email", {
-        newUser,
-        pass: plainPassword,
+        user:newUser,
+        password: plainPassword,
         orgName,
       });
 
-      createdUsers.push(newUser);
+      // Send the OTP required to verify this account before first login.
+      // await generateOTP(newUser._id);
+
+      // Never return the password hash to the client.
+      const safeUser = newUser.toObject();
+      delete (safeUser as any).password;
+      createdUsers.push(safeUser);
     } catch (err) {
+      // Strip any hashed password that may already have been set on
+      // userData before this record failed, so it never leaks in the
+      // API response either.
+      const { password: _omit, ...safeUserData } = userData;
       failedUsers.push({
-        user: userData,
+        user: safeUserData,
         error:
           err instanceof Error ? err.message : "Unknown error occurred",
       });
@@ -139,9 +152,20 @@ export const userlogin = async (
     );
   }
 
+  // if (!user.otpverified) {
+  //   throw new AppError(
+  //     "Account not verified. Please verify the OTP sent to your email before logging in.",
+  //     403,
+  //     "OTP_NOT_VERIFIED"
+  //   );
+  // }
+
+  const safeUser = user.toObject();
+  delete (safeUser as any).password;
+
   return {
     message: "Login successful",
-    user,
+    user: safeUser,
   };
 };
 
@@ -273,41 +297,64 @@ export const getUsers = async (
 
 export const verifyUser = async (userId: string, otp: string) => {
 
+  const MAX_OTP_ATTEMPTS = 5;
+
   if (!mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid user ID");
+    throw new AppError("Invalid user ID", 400, "INVALID_USER_ID");
   }
 
   const user = await Usermodel.findById(userId);
 
   if (!user) {
-    throw new Error("User not found");
+    throw new AppError("User not found", 404, ErrorCode.USER_NOT_FOUND);
   }
 
-  const otpDoc = await Otpmodel.findOne({
+  // Look up whatever outstanding OTP exists for this user (there should be
+  // at most one, since generateOTP clears previous ones) so we can track
+  // and cap failed attempts regardless of the code the caller submitted.
+  const pendingOtp = await Otpmodel.findOne({
     userId: new mongoose.Types.ObjectId(userId),
-    otp: Number(otp),
   });
 
-  if (!otpDoc) {
-    throw new Error("Invalid OTP");
+  if (!pendingOtp) {
+    throw new AppError("Invalid or expired OTP", 401, "INVALID_OTP");
+  }
+
+  if ((pendingOtp.attempts ?? 0) >= MAX_OTP_ATTEMPTS) {
+    await Otpmodel.deleteOne({ _id: pendingOtp._id });
+    throw new AppError(
+      "Too many incorrect attempts. Please request a new OTP.",
+      429,
+      "OTP_LOCKED"
+    );
+  }
+
+  if (pendingOtp.otp !== Number(otp)) {
+    pendingOtp.attempts = (pendingOtp.attempts ?? 0) + 1;
+    await pendingOtp.save();
+    throw new AppError("Invalid or expired OTP", 401, "INVALID_OTP");
   }
 
   user.otpverified = true;
   await user.save();
 
-  await Otpmodel.deleteOne({ _id: otpDoc._id });
+  await Otpmodel.deleteOne({ _id: pendingOtp._id });
+
+  const safeUser = user.toObject();
+  delete (safeUser as any).password;
 
   return {
     message: "User verified successfully",
-    user,
+    user: safeUser,
   };
 
 };
 
 export const checkLogin=(accesstoken:string)=>{
 
-     const token=jwt.verify(accesstoken,ATJWTKEY);
-     if(!token){
+     try {
+       jwt.verify(accesstoken,ATJWTKEY);
+     } catch {
       throw new AppError(
       "Invalid token",
       401,

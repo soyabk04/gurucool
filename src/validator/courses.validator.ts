@@ -15,7 +15,7 @@ const objectIdSchema = z
 const courseSchema = z.object({
   title: z.string().min(1, "too short"),
   description: z.string().min(1, "too short"),
-
+  thumbnail: z.string().optional(),
 });
 const chapterSchema = z.object({
   serialNo: z.number().optional(),
@@ -27,10 +27,10 @@ const chapterSchema = z.object({
 });
 
 const courseAssignmentSchema = z.object({
-  courseId: objectIdSchema,
-  userId: objectIdSchema,
-  organizationId: objectIdSchema,
-  groupId: objectIdSchema,
+  courseId: z.string(),
+  userIds: z.string().array(),
+  organizationId: objectIdSchema.optional(),
+  groupId: objectIdSchema.optional(),
   enrolledBy: objectIdSchema.optional(),
   progress: z.number().min(0).max(100).optional(),
   status: z.enum(["active", "completed"]).optional(),
@@ -78,6 +78,7 @@ export const validate =
   (schema: z.ZodTypeAny, key: string) =>
   (req: Request, res: Response, next: NextFunction) => {
     try {
+      
       const payload = req.body[key];
       
       if (!payload) {
@@ -103,7 +104,6 @@ export const validate =
       }
 
       req.body[key] = result.data;
-      console.log(req.body[key])
       next();
     } catch {
       return res.status(400).json({
@@ -117,7 +117,6 @@ export const validateMultiple = (schema: z.ZodTypeAny, key: string) =>
   (req: Request, res: Response, next: NextFunction) => {
 
     const items = req.body;
-    console.log(req.body)
     if (!Array.isArray(items)) {
       return res.status(400).json({
         success: false,
@@ -141,7 +140,6 @@ export const validateMultiple = (schema: z.ZodTypeAny, key: string) =>
         });
       }
     }
-    console.log(errors)
     if (errors.length > 0) {
       return res.status(400).json({
         success: false,
@@ -167,7 +165,7 @@ const chapterValidator =
   validate(chapterSchema, "chapter");
 
 const Assignmentvalidator =
-  validate(courseAssignmentSchema, "validAssignment");
+  validate(courseAssignmentSchema, "assignment");
 const quizValidator =
   validate(quizSchema, "validQuiz");
 
