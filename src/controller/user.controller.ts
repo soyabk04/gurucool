@@ -14,7 +14,7 @@ import { revokeToken } from "../utils/tokenStore.js";
 const cookieOptions = {
   httpOnly: true,
   secure: true,
-  sameSite: "lax" as const,
+  sameSite: "none" as const, // Recommended for cross-origin requests
 };
 
 const createUserController = async (req: Request, res: Response) => {
