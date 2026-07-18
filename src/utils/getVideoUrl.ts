@@ -12,3 +12,12 @@ export const getVideoStreamUrl = async (key: string) => {
     expiresIn: 60 * 60, // 1 hour
   });
 };
+
+export const getLogo = async (key: string) => {
+  const command = new GetObjectCommand({
+    Bucket: process.env.R2_BUCKET!,
+    Key: key,
+  });
+
+  return await getSignedUrl(r2Client, command);
+};

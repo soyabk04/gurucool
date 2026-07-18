@@ -11,6 +11,7 @@ import {getVideoStreamUrl} from "./utils/getVideoUrl.js"
 import { organizationRouter } from './routes/organization.route.js';
 import { analyticsRouter } from './routes/analytics.routes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
+import { getLogo } from './utils/getVideoUrl.js';
 dotenv.config();
 
 const app = express();
@@ -49,6 +50,7 @@ app.use("/api/auth", userRouter); // Import and use user routes
 app.use('/api/courses', courseRouter); // Import and use course routes
 app.use('/api/organization', organizationRouter);
 app.use('/api/analytics', analyticsRouter);
+
 
 
 

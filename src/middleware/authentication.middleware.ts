@@ -8,7 +8,6 @@ export const authMiddleware = (
   next: NextFunction
 ) => {
   const authHeader = req.cookies.accesstoken
-  console.log(authHeader)
 
   if (!authHeader) {
     return res.status(401).json({

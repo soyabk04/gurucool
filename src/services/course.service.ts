@@ -200,8 +200,8 @@ export const assignCourseToUsers = async (
     const session = await mongoose.startSession();
 
     try {
-        
-console.log('course')
+
+        console.log('course')
         const course = await CourseModel.findById(data.courseId);
 
         console.log('course')
@@ -266,79 +266,93 @@ console.log('course')
             await CourseProgressModel.insertMany(progressDocs);
         }
 
-        
+
 
         return {
             assigned: enrollments.length,
         };
     } catch (error) {
-        
+
         throw error;
     } finally {
-        
+
     }
 };
 export const getCourses = async (userInfo: { userId: string; role: string }) => {
-    if(userInfo.role=="superadmin"){
-        const courses = await CourseModel.find().select("title _id");
+  if (userInfo.role === "superadmin") {
+    const courses = await CourseModel.find().select("_id title thumbnail");
 
-        const result = await Promise.all(
-            courses.map(async (course) => ({
-                _id: course._id,
-                title: course.title,
-                thumbnail:course.thumbnail,
-            }))
-        );
-        return result
-    }
-        if(userInfo.role=="admin"){
+    return Promise.all(
+      courses.map(async (course) => ({
+        _id: course._id,
+        title: course.title,
+        thumbnail: course.thumbnail
+          ? await getVideoStreamUrl(course.thumbnail)
+          : null,
+      }))
+    );
+  }
 
-        const courses = await OrganizationCourse.find({adminId:userInfo.userId}).select("title _id").populate("courseId");
+  if (userInfo.role === "admin") {
+    const courses = await OrganizationCourse.find({
+      adminId: userInfo.userId,
+    }).populate("courseId", "_id title thumbnail");
 
-        const result = await Promise.all(
-            courses.map(async (course) => ({
-                _id: course.courseId._id,
-                title: course.courseId.title,
-            }))
-        );
-        
-        return result
-    }
-            if(userInfo.role=="coordinator"){
-                let groupId=await Usermodel.findById(userInfo.userId)
-        const courses = await GroupCourse.find({groupId:groupId?.groupId})
-        
-        .select("title _id").populate("courseId");
+    return Promise.all(
+      courses
+        .filter((item: any) => item.courseId)
+        .map(async (item: any) => ({
+          _id: item.courseId._id,
+          title: item.courseId.title,
+          thumbnail: item.courseId.thumbnail
+            ? await getVideoStreamUrl(item.courseId.thumbnail)
+            : null,
+        }))
+    );
+  }
 
-        const result = await Promise.all(
-            courses.map(async (course) => ({
-                _id: course.courseId._id,
-                title: course.courseId.title,
-                thumbnail: course.courseId.thumbnail
-            }))
-        );
-        
-        return result
-    }
-if (userInfo.role === "user") {
-const enrollments = await EnrollmentModel.find({ userId: userInfo.userId })
-    .populate("courseId", "title thumbnail")
-    .lean();
+  if (userInfo.role === "coordinator") {
+    const user = await Usermodel.findById(userInfo.userId).select("groupId");
 
-const typedEnrollments = enrollments as unknown as any[];
+    const courses = await GroupCourse.find({
+      groupId: user?.groupId,
+    }).populate("courseId", "_id title thumbnail");
 
-const result = typedEnrollments
-    .filter((enrollment) => enrollment.courseId)
-    .map((enrollment) => ({
-        _id: enrollment.courseId!._id,
-        title: enrollment.courseId!.title,
-        thumbnail: enrollment.courseId!.thumbnail
-    }));
-    return result 
-}
+    return Promise.all(
+      courses
+        .filter((item: any) => item.courseId)
+        .map(async (item: any) => ({
+          _id: item.courseId._id,
+          title: item.courseId.title,
+          thumbnail: item.courseId.thumbnail
+            ? await getVideoStreamUrl(item.courseId.thumbnail)
+            : null,
+        }))
+    );
+  }
 
+  if (userInfo.role === "user") {
+    const enrollments = await EnrollmentModel.find({
+      userId: userInfo.userId,
+    })
+      .populate("courseId", "_id title thumbnail")
+      .lean();
 
-}
+    return Promise.all(
+      (enrollments as any[])
+        .filter((e) => e.courseId)
+        .map(async (e) => ({
+          _id: e.courseId._id,
+          title: e.courseId.title,
+          thumbnail: e.courseId.thumbnail
+            ? await getVideoStreamUrl(e.courseId.thumbnail)
+            : null,
+        }))
+    );
+  }
+
+  return [];
+};
 export const assignCourseToGroup = async (
     groupId: string,
     courseId: string,
@@ -347,7 +361,7 @@ export const assignCourseToGroup = async (
     if (userInfo.role !== "admin") {
         throw new Error("Only admins can assign courses to groups.");
     }
-    
+
     const group = await Groupmodel.findById(groupId);
 
     if (!group) {
@@ -444,8 +458,8 @@ export const getassignCourseToOrganization = async (userInfo: { userId: string, 
 }
 
 export const getassignCourseToGroup = async (userInfo: { userId: string, role: string }) => {
-    const user=await Usermodel.findById(userInfo.userId)
-    const OrganizationCourses = await GroupCourse.find({organizationId:user?.organization})
+    const user = await Usermodel.findById(userInfo.userId)
+    const OrganizationCourses = await GroupCourse.find({ organizationId: user?.organization })
         .populate("courseId groupId");
 
     const result = await Promise.all(
@@ -463,12 +477,12 @@ export const getassignCourseToGroup = async (userInfo: { userId: string, role: s
 
 export const getOrganizationCourses = async (
     userInfo: { userId: string, role: string }) => {
-    const OrganizationCourses = await OrganizationCourse.find({adminId:userInfo.userId})
+    const OrganizationCourses = await OrganizationCourse.find({ adminId: userInfo.userId })
         .populate("courseId");
 
     const result = await Promise.all(
         OrganizationCourses.map(async (OrganizationCourse) => ({
-            
+
             title: OrganizationCourse.courseId.title,
             _id: OrganizationCourse.courseId._id,
         }))
@@ -479,32 +493,32 @@ export const getOrganizationCourses = async (
 
 }
 
-export const getChapter = async (chapterId:string,userInfo:{userId:string,role:string})=>{
-    const chapter= await ChapterModel.findById(chapterId);
-    if(userInfo.role=='coordinator'){
-        const user=await Usermodel.findById(userInfo.userId);
-        const courseEn=await GroupCourse.find({courseId:chapter?.courseId,groupId:user?.groupId});
-        if(!courseEn){
+export const getChapter = async (chapterId: string, userInfo: { userId: string, role: string }) => {
+    const chapter = await ChapterModel.findById(chapterId);
+    if (userInfo.role == 'coordinator') {
+        const user = await Usermodel.findById(userInfo.userId);
+        const courseEn = await GroupCourse.find({ courseId: chapter?.courseId, groupId: user?.groupId });
+        if (!courseEn) {
             throw new Error("you dont have permission");
         }
-        const url=await getVideoStreamUrl(chapter!.videoUrl)
-        return{
-            id:chapter?._id,
-            title:chapter?.title,
-            videoUrl:url
+        const url = await getVideoStreamUrl(chapter!.videoUrl)
+        return {
+            id: chapter?._id,
+            title: chapter?.title,
+            videoUrl: url
         }
     }
-        if(userInfo.role=='user'){
-        const user=await Usermodel.findById(userInfo.userId);
-        const courseEn=await EnrollmentModel.find({courseId:chapter?.courseId,userId:user?._id});
-        if(!courseEn){
+    if (userInfo.role == 'user') {
+        const user = await Usermodel.findById(userInfo.userId);
+        const courseEn = await EnrollmentModel.find({ courseId: chapter?.courseId, userId: user?._id });
+        if (!courseEn) {
             throw new Error("you dont have permission");
         }
-        const url=await getVideoStreamUrl(chapter!.videoUrl);
-        return{
-            id:chapter?._id,
-            title:chapter?.title,
-            videoUrl:url
+        const url = await getVideoStreamUrl(chapter!.videoUrl);
+        return {
+            id: chapter?._id,
+            title: chapter?.title,
+            videoUrl: url
         }
     }
 }

@@ -95,6 +95,7 @@ export const getCoursesController = async (req: Request, res: Response) => {
     const user = req.user!;
 
     const response = await getCourses(user)
+   
     if (response) {
         res.send({
             success: true,
