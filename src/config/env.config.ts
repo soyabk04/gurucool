@@ -19,3 +19,5 @@ export const gmailPass = getEnv("GMAILPASS");
 export const mongoUrl = getEnv("MONGOURL");
 export const ATJWTKEY = getEnv("ATJWTKEY");
 export const RTJWTKEY = getEnv("RTJWTKEY");
+export const redisHost = getEnv("REDIS_HOST");
+export const redisToken = getEnv("REDIS_TOKEN");
