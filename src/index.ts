@@ -21,6 +21,7 @@ const allowedOrigins = [
   "http://localhost:5173", // Vite
   "http://localhost:5500",
   "http://localhost:4173", // Vite Preview (optional)
+  "https://gurucool-frontend-three.vercel.app"
 ];
 
 app.use(
