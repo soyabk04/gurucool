@@ -18,32 +18,10 @@ const app = express();
 
 
 
-const allowedOrigins = [
-  "http://localhost:5173", // Vite
-  "http://localhost:5500",
-  "http://localhost:4173", // Vite Preview (optional)
-  "https://gurucool-frontend.vercel.app"
-  ,"*"
-
-];
-
 app.use(
   cors({
-    origin(origin, callback) {
-      // Allow requests like Postman or curl (no Origin header)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      callback(new Error("Not allowed by CORS"));
-    },
+    origin: "*",
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 app.use(cookieParser());
