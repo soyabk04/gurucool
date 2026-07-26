@@ -61,7 +61,7 @@ const createGroupController = async (req: Request, res: Response) => {
 const getOrgThemeController =async (req:Request,res:Response)=>{
         const domain=req.body.domain
         const response=await getOraganizationConfig(domain)
-        res.send(response)
+        res.send({data:response})
 
 }
 
