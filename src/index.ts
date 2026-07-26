@@ -23,6 +23,7 @@ const allowedOrigins = [
   "http://localhost:5500",
   "http://localhost:4173", // Vite Preview (optional)
   "https://gurucool-frontend.vercel.app"
+  ,"*"
 
 ];
 
