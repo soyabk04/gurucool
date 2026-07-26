@@ -32,7 +32,7 @@ userRouter.post("/logout", authMiddleware, asyncHandler(logoutUser));
 
 userRouter.post(
   "/csvparse",
-  authMiddleware,authorizeRoles('superadmin','admin','coordinator'),
+  authMiddleware,
   uploadCsv.single("file"),
   asyncHandler(bulkUploadUsers)
 );

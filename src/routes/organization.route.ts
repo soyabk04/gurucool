@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getGroupController,createOrganizationController,createGroupController,getOrganizationUsersController, getOrganizationController,} from "../controller/organization.controller.js";
+import { getGroupController,createOrganizationController,getOrgThemeController,createGroupController,getOrganizationUsersController, getOrganizationController,} from "../controller/organization.controller.js";
 import {organizationValidator,groupValidator,} from "../validator/organization.validator.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { authMiddleware } from "../middleware/authentication.middleware.js";
@@ -10,6 +10,10 @@ import { getGroup } from "../services/organization.service.js";
 
 export const organizationRouter = Router();
 
+organizationRouter.post(
+    "/orgtheme",
+asyncHandler(getOrgThemeController)
+);
 organizationRouter.post(
     "/",
     authMiddleware,

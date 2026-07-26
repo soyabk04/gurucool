@@ -144,7 +144,7 @@ export const bulkUploadUsers = async (req: Request, res: Response) => {
   }
 
   const users = await csvToArray(req.file.buffer);
-
+ console.log(users)
   res.json({
     success: true,
     data: users,

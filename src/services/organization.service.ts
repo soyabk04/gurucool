@@ -9,6 +9,9 @@ import { sendWelcomeEmail } from "../utils/sendemail.js";
 import { emailQueue } from "../queue/email.queue.js";
 import { AppError } from "../errors/AppError.js";
 import { R2Service } from "../utils/cloudflare.js";
+import { getLogo } from "../utils/getVideoUrl.js";
+import { userInfo } from "node:os";
+import multer from "multer";
 
 const createOrganizationService = async (
     orgData: organization,
@@ -38,7 +41,7 @@ const createOrganizationService = async (
     }
 
     const organization = new Organizationmodel(orgData);
-    await organization.save();
+    
 
     if (file) {
         const key = `organizations/${organization._id}/branding/logo`;
@@ -54,7 +57,7 @@ const createOrganizationService = async (
         }
 
         organization.logoUrl = key;
-        await organization.save();
+       
     }
 
     await Promise.all(
@@ -276,12 +279,21 @@ export const getGroup = async (userId: string) => {
 
     return result;
 };
-const getOraganizationConfig = async (hostname: string) => {
-    const organization = await Organizationmodel.findOne({ domain: hostname });
+const getOraganizationConfig = async (domain: string) => {
+    const organization = await Organizationmodel.findOne({ domain: domain });
+    
     if (!organization) {
-        throw new Error("Organization not found");
+                throw new AppError(
+            "Organization not found",
+            404,
+            "ORGANIZATION_NOT_FOUND"
+        );
     }
+    let logoUrl=await getLogo(organization?.logoUrl)
+    organization.logoUrl=logoUrl
     return organization;
 }
-
-export { createOrganizationService, createGroupService, getOrganizationUsersService };
+const editOrg=async (userInfo:{userId:string,role:string},file:Express.Multer.File,data:any)=>{
+        
+}
+export { createOrganizationService, createGroupService,getOraganizationConfig, getOrganizationUsersService };

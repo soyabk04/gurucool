@@ -1,4 +1,4 @@
-import { createOrganizationService, createGroupService, getOrganizationUsersService, getOrganization, getGroup } from "../services/organization.service.js";
+import { createOrganizationService, createGroupService,getOraganizationConfig, getOrganizationUsersService, getOrganization, getGroup } from "../services/organization.service.js";
 import { type Request, type Response, type NextFunction } from "express";
 import { AppError } from "../errors/AppError.js";
 
@@ -58,6 +58,11 @@ const createGroupController = async (req: Request, res: Response) => {
 };
 
 
+const getOrgThemeController =async (req:Request,res:Response)=>{
+        const domain=req.body.domain
+        const response=await getOraganizationConfig(domain)
+        res.send(response)
 
+}
 
-export { getGroupController,getOrganizationController,createOrganizationController, createGroupController, getOrganizationUsersController };
+export { getGroupController,getOrganizationController,getOrgThemeController,createOrganizationController, createGroupController, getOrganizationUsersController };
