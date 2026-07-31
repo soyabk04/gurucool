@@ -1,12 +1,10 @@
 import multer from "multer";
 
-// Generic upload used for course thumbnails/logos/attachments — cap size
-// and restrict to common document/image/CSV types to avoid unbounded
-// memory usage and arbitrary file-type uploads.
+
 export const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 2000 * 1024 * 1024, // 10MB
+    fileSize: 2000 * 1024 * 1024, 
   },
 });
 

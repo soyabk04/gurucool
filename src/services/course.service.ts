@@ -197,8 +197,6 @@ export const assignCourseToUsers = async (
     data: AssignCourseDto,
     coordinatorId: string
 ) => {
-    const session = await mongoose.startSession();
-
     try {
 
         console.log('course')
@@ -498,7 +496,7 @@ export const getChapter = async (chapterId: string, userInfo: { userId: string, 
     if (userInfo.role == 'coordinator') {
         const user = await Usermodel.findById(userInfo.userId);
         const courseEn = await GroupCourse.find({ courseId: chapter?.courseId, groupId: user?.groupId });
-        if (!courseEn) {
+        if (courseEn.length === 0) {
             throw new Error("you dont have permission");
         }
         const url = await getVideoStreamUrl(chapter!.videoUrl)

@@ -7,21 +7,27 @@ import userRouter from './routes/user.route.js';
 import courseRouter from './routes/course.route.js';
 import cors from "cors";
 import "./workers/email.worker.js";
-import {getVideoStreamUrl} from "./utils/getVideoUrl.js"
 import { organizationRouter } from './routes/organization.route.js';
 import { analyticsRouter } from './routes/analytics.routes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
-import { getLogo } from './utils/getVideoUrl.js';
+import {getDomains} from './services/organization.service.js'
 dotenv.config();
-
+await dbConnect();
+const allowedOrigins = await getDomains();
 const app = express();
-
-
 
 app.use(
   cors({
     origin(origin, callback) {
-      callback(null, true);
+      if (!origin) return callback(null, true);
+
+      const hostname = new URL(origin).hostname;
+
+      if (allowedOrigins.includes(hostname)) {
+        return callback(null, true);
+      }
+
+      callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
   })
@@ -40,5 +46,5 @@ app.use(errorMiddleware)
 
 app.listen(port, async () => {
     console.log(`Server is running on port ${port}`);
-    await dbConnect();
+    
 });

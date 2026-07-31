@@ -138,7 +138,7 @@ export const enrollGroupController = async (
             "All users in this group are already enrolled in this course.",
             "One or more users are already enrolled in this course.",
         ];
-        console.log(error)
+        
         if (knownErrors.includes(error.message)) {
             return res.status(400).json({
                 success: false,
@@ -266,7 +266,7 @@ export const getEnrollGrpController = async (
             });
         }
 
-        next(error);
+        next();
     }
 };
 

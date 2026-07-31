@@ -296,4 +296,11 @@ const getOraganizationConfig = async (domain: string) => {
 const editOrg=async (userInfo:{userId:string,role:string},file:Express.Multer.File,data:any)=>{
         
 }
-export { createOrganizationService, createGroupService,getOraganizationConfig, getOrganizationUsersService };
+const getDomains = async (): Promise<string[]> => {
+  const organizations = await Organizationmodel
+    .find({}, "domain")
+    .lean();
+
+  return organizations.map((org) => org.domain);
+};
+export { createOrganizationService, getDomains,createGroupService,getOraganizationConfig, getOrganizationUsersService };

@@ -212,7 +212,7 @@ const enrollmentSchema = new Schema<Enrollment>(
 
         groupId: {
             type: Schema.Types.ObjectId,
-            ref: "Group",
+            ref: "group",
             required: true,
             index: true
         },

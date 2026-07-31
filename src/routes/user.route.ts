@@ -8,38 +8,80 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 import { bulkUploadUsers } from "../controller/user.controller.js";
 import { upload, uploadCsv } from "../middleware/upload.middleware.js";
 import { uploadFile } from "../controller/upload.controller.js";
+import {createRateLimiter } from "../middleware/rateLimit.middleware.js"
 
 
 const userRouter = Router();
 
-userRouter.post("/createuser",authMiddleware,authorizeRoles("superadmin", "admin","coordinator"), userSignupValidator, asyncHandler(createUserController));
-userRouter.post("/login", notLoggedIn, userSigninValidator, asyncHandler(userLoginController));
-userRouter.post("/accesstoken", asyncHandler(generateAccessTokenController));
-userRouter.post("/verify",asyncHandler(otpVerificationController) );
-userRouter.get("/isloggedin", authMiddleware, (req, res) => {
-  res.status(200).json({
-    success: true,
-    user: req.user,
-  });
-});
-userRouter.get("/",(req:Request,res:Response)=>{
-       res.send({
-        message:"welcome to guruCool"
-        ,success:true
-       })
-})
-userRouter.post("/logout", authMiddleware, asyncHandler(logoutUser));
+userRouter.post(
+  "/createuser",
+  createRateLimiter(20, 15, "Too many user creation requests."),
+  authMiddleware,
+  authorizeRoles("superadmin", "admin", "coordinator"),
+  userSignupValidator,
+  asyncHandler(createUserController)
+);
+
+userRouter.post(
+  "/login",
+  createRateLimiter(5, 15, "Too many login attempts. Please try again later."),
+  notLoggedIn,
+  userSigninValidator,
+  asyncHandler(userLoginController)
+);
+
+userRouter.post(
+  "/accesstoken",
+  createRateLimiter(30, 15, "Too many token refresh requests."),
+  asyncHandler(generateAccessTokenController)
+);
+
+// userRouter.post("/verify",
+//   createRateLimiter(5, 10),
+//   asyncHandler(otpVerificationController)
+// );
+
+userRouter.get(
+  "/isloggedin",
+  createRateLimiter(100, 15),
+  authMiddleware,
+  (req, res) => {
+    res.status(200).json({
+      success: true,
+      user: req.user,
+    });
+  }
+);
+
+userRouter.get(
+  "/",
+  createRateLimiter(200, 15),
+  (req: Request, res: Response) => {
+    res.send({
+      message: "welcome to guruCool",
+      success: true,
+    });
+  }
+);
+
+userRouter.post(
+  "/logout",
+  createRateLimiter(20, 15),
+  authMiddleware,
+  asyncHandler(logoutUser)
+);
 
 userRouter.post(
   "/csvparse",
+  createRateLimiter(5, 15, "Too many CSV uploads."),
   authMiddleware,
   uploadCsv.single("file"),
   asyncHandler(bulkUploadUsers)
 );
 
-
 userRouter.post(
   "/upload",
+  createRateLimiter(20, 15, "Too many file uploads."),
   authMiddleware,
   upload.single("file"),
   asyncHandler(uploadFile)
@@ -47,9 +89,15 @@ userRouter.post(
 
 userRouter.get(
   "/getusers",
-  authMiddleware, 
+  createRateLimiter(100, 15),
+  authMiddleware,
   asyncHandler(getUsersController)
 );
 
-userRouter.post('/checklogin',asyncHandler(checkLoginController))
+userRouter.post(
+  "/checklogin",
+  createRateLimiter(30, 15),
+  asyncHandler(checkLoginController)
+);
+
 export default userRouter;
