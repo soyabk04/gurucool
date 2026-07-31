@@ -190,7 +190,7 @@ export const enrollOrgController = async (
             });
         }
 
-        next(error);
+        next();
     }
 };
 export const getEnrollOrgController = async (
@@ -228,7 +228,7 @@ export const getEnrollOrgController = async (
             });
         }
 
-        next(error);
+        next();
     }
 };
 export const getEnrollGrpController = async (

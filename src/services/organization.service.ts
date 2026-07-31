@@ -10,7 +10,6 @@ import { emailQueue } from "../queue/email.queue.js";
 import { AppError } from "../errors/AppError.js";
 import { R2Service } from "../utils/cloudflare.js";
 import { getLogo } from "../utils/getVideoUrl.js";
-import { userInfo } from "node:os";
 import multer from "multer";
 
 const createOrganizationService = async (
@@ -93,10 +92,12 @@ const createOrganizationService = async (
                 plainPassword,
                 OrgName
             );
+            await organization.save();
         })
+    
     );
 
-    await organization.save();
+    
 
     return {
         success: true,

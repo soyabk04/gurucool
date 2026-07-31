@@ -13,21 +13,31 @@ import { errorMiddleware } from './middleware/errorMiddleware.js';
 import {getDomains} from './services/organization.service.js'
 dotenv.config();
 await dbConnect();
-const allowedOrigins = await getDomains();
+
 const app = express();
 
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
+    
+    async origin(origin,  callback) {
+      try {
+        if (!origin) {
+          return callback(null, true);
+        }
 
-      const hostname = new URL(origin).hostname;
+        const hostname = new URL(origin).hostname.toLowerCase();
+        const allowedOrigins = (await getDomains()).map((d) =>
+          d.toLowerCase().trim()
+        );
 
-      if (allowedOrigins.includes(hostname)) {
-        return callback(null, true);
+        if (allowedOrigins.includes(hostname)) {
+          return callback(null, true);
+        }
+
+        callback(new Error("Not allowed by CORS"));
+      }catch (err) {
+        callback(err as Error);
       }
-
-      callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
   })
