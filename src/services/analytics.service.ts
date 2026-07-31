@@ -3,9 +3,12 @@ import { dashboardAnalyticsRepository } from "../repository/analytics.repository
 import mongoose from "mongoose";
 import { getCourseOverviewRepository } from "../repository/analytics.repository.js";
 export const dashboardAnalyticsService = async (
-    user: any
+    userInfo: {
+        userId:string,
+        role:string
+    }
 ) => {
-    const User=await Usermodel.findById(user.userId);
+    const User=await Usermodel.findById(userInfo.userId);
 
     if (!User) {
         throw new Error("User not found");
