@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 import { generatePassword } from "../utils/passwordGenerator.js";
 import { sendWelcomeEmail } from "../utils/sendemail.js";
 import jwt from "jsonwebtoken";
-import { Groupmodel } from "../models/organization.model.js";
+import { Groupmodel, Organizationmodel } from "../models/organization.model.js";
 import { ATJWTKEY } from "../config/env.config.js";
 import { ErrorCode } from "../errors/ErrorCode.js";
 import { AppError } from "../errors/AppError.js";
@@ -16,32 +16,61 @@ import { emailQueue } from "../queue/email.queue.js";
 export const createUser = async (
   users: any[],
   userInfo: any,
-  failedItems: any[]
+  failedItems: any[] = []
 ) => {
   const createdUsers = [];
   const failedUsers = failedItems;
 
-  const organization = await Usermodel.findById(userInfo.userId).populate(
-    "organization"
-  );
+  let creatorOrgId: mongoose.Types.ObjectId | null = null;
+  let orgName = "";
 
-  if (!organization?.organization) {
-    throw new AppError(
-      "Organization not found",
-      404,
-      "ORGANIZATION_NOT_FOUND"
+  if (userInfo.role === "superadmin") {
+    // Superadmin must set organization on each user payload (validated by Zod).
+  } else {
+    const creator = await Usermodel.findById(userInfo.userId).populate(
+      "organization"
     );
-  }
 
-  // `organization` here is the *creating user's* document (populated with
-  // their organization). `organization.name` is that user's own name field,
-  // not the organization's name — the org's name lives on the populated
-  // `organization.organization` sub-document.
-  const orgName = (organization.organization as any).name;
+    if (!creator?.organization) {
+      throw new AppError(
+        "Organization not found",
+        404,
+        "ORGANIZATION_NOT_FOUND"
+      );
+    }
+
+    creatorOrgId = creator.organization._id as mongoose.Types.ObjectId;
+    orgName = (creator.organization as { name: string }).name;
+  }
 
   for (const userData of users) {
     try {
-      userData.organization=organization.organization._id;
+      const targetOrgId =
+        userInfo.role === "superadmin"
+          ? userData.organization
+          : creatorOrgId;
+
+      if (!targetOrgId) {
+        failedUsers.push({
+          user: userData,
+          error: "organization is required",
+        });
+        continue;
+      }
+
+      if (userInfo.role === "superadmin" && userData.organization) {
+        const orgDoc = await Organizationmodel.findById(userData.organization);
+        if (!orgDoc) {
+          failedUsers.push({
+            user: userData,
+            error: "Organization not found",
+          });
+          continue;
+        }
+        orgName = orgDoc.name;
+      }
+
+      userData.organization = targetOrgId;
       // Role validation
       if (
         (userInfo.role === "admin" && userData.role === "superadmin") ||
@@ -75,8 +104,17 @@ export const createUser = async (
       userData.password = await hashpass(plainPassword);
 
       // Group
+      if (!userData.groupCode) {
+        failedUsers.push({
+          user: userData,
+          error: "groupCode is required",
+        });
+        continue;
+      }
+
       const group = await Groupmodel.findOne({
         groupCode: userData.groupCode.toUpperCase(),
+        organization: targetOrgId,
       });
 
       if (!group) {
@@ -136,9 +174,9 @@ export const userlogin = async (
 
   if (!user) {
     throw new AppError(
-      "User not found",
-      404,
-      ErrorCode.USER_NOT_FOUND
+      "Invalid email or password",
+      401,
+      ErrorCode.INVALID_CREDENTIALS
     );
   }
 

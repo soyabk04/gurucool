@@ -1,10 +1,9 @@
 import { Redis } from "ioredis";
-import { redisToken } from "./env.config.js";
-
+import { redisUrl } from "./env.config.js";
 
 let attempts = 0;
 
-export const connection = new Redis(`rediss://default:${redisToken}@casual-mammal-175000.upstash.io:6379`, {
+export const connection = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
 
   retryStrategy() {

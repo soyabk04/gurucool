@@ -8,7 +8,7 @@ export const createCourseController = async (req: Request, res: Response, next: 
         const user = req.user!;
         const file = req.file!;
 
-        const course = await createCourse(courseData, user.userId, file);
+        const course = await createCourse(courseData, user, file);
         res.status(201).send({
             success: true,
             course,
@@ -79,8 +79,8 @@ export const assignCourseToUsersController = async (
 ) => {
     try {
         const result = await assignCourseToUsers(
-            req.body,
-            req.user!.userId
+            req.body.assignment ?? req.body,
+            req.user!
         );
 
         res.status(201).json({

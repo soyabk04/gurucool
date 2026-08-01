@@ -10,14 +10,14 @@ import { emailQueue } from "../queue/email.queue.js";
 import { AppError } from "../errors/AppError.js";
 import { R2Service } from "../utils/cloudflare.js";
 import { getLogo } from "../utils/getVideoUrl.js";
-import multer from "multer";
+import mongoose from "mongoose";
+import {assignCourseToOrganization} from "../services/course.service.js";
 
 const createOrganizationService = async (
     orgData: organization,
     admin: User[],
     file?: Express.Multer.File
 ) => {
-    // Validate input
     if (!admin.length) {
         throw new AppError(
             "At least one admin user is required",
@@ -26,9 +26,8 @@ const createOrganizationService = async (
         );
     }
 
-    // Check if organization already exists
     const existingOrganization = await Organizationmodel.findOne({
-        name: orgData.name,
+        $or: [{ name: orgData.name }, { domain: orgData.domain }],
     });
 
     if (existingOrganization) {
@@ -39,32 +38,18 @@ const createOrganizationService = async (
         );
     }
 
-    const organization = new Organizationmodel(orgData);
-    
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (file) {
-        const key = `organizations/${organization._id}/branding/logo`;
+    try {
+        const [organization] = await Organizationmodel.create([orgData], {
+            session,
+        });
 
-        const uploaded = await R2Service.upload(file, key);
-
-        if (!uploaded) {
-            throw new AppError(
-                "Failed to upload organization logo",
-                500,
-                "LOGO_UPLOAD_FAILED"
-            );
-        }
-
-        organization.logoUrl = key;
-       
-    }
-
-    await Promise.all(
-        admin.map(async (user) => {
-            // Check duplicate email
+        for (const user of admin) {
             const existingUser = await Usermodel.findOne({
                 email: user.email,
-            });
+            }).session(session);
 
             if (existingUser) {
                 throw new AppError(
@@ -81,29 +66,46 @@ const createOrganizationService = async (
             user.password = await hashpass(plainPassword);
 
             const newUser = new Usermodel(user);
-            await newUser.save();
+            await newUser.save({ session });
 
             if (!organization.adminUserId) {
                 organization.adminUserId = newUser._id;
             }
-            const OrgName = organization.name
-            await sendWelcomeEmail(
-                newUser,
-                plainPassword,
-                OrgName
-            );
-            await organization.save();
-        })
-    
-    );
 
-    
+            await emailQueue.add("welcome-email", {
+                user: newUser,
+                password: plainPassword,
+                orgName: organization.name,
+            });
+        }
 
-    return {
-        success: true,
-        organization,
-        message: "Organization and admin users created successfully",
-    };
+        if (file) {
+            const key = `organizations/${organization._id}/branding/logo`;
+            const uploaded = await R2Service.upload(file, key);
+            if (!uploaded) {
+                throw new AppError(
+                    "Failed to upload organization logo",
+                    500,
+                    "LOGO_UPLOAD_FAILED"
+                );
+            }
+            organization.logoUrl = key;
+        }
+
+        await organization.save({ session });
+        await session.commitTransaction();
+        assignCourseToOrganization(organization._id.toString(), "64a7e1f0c3b5f8b9d6e4a2c1");
+        return {
+            success: true,
+            organization,
+            message: "Organization and admin users created successfully",
+        };
+    } catch (err) {
+        await session.abortTransaction();
+        throw err;
+    } finally {
+        session.endSession();
+    }
 };
 
 export const getOrganization = async () => {
@@ -188,7 +190,7 @@ const createGroupService = async (
   // Send welcome email (don't fail the request if email fails)
   try {
     await emailQueue.add("welcome-email", {
-      user: coordinator[0],
+      user: newCoordinator,
       password: plainPassword,
       orgName: organization.name,
     });
@@ -218,42 +220,49 @@ const getOrganizationUsersService = async (user1: {
     userId: string;
     role: string;
 }) => {
-    try {
-        const userRoleinfo = user1
-        const user = await Usermodel.findById(userRoleinfo.userId);
-        if (!user) {
-            throw new Error("User not found");
-        }
-        let Id: object | undefined = {}
-        if (user.role === "admin") {
-            Id = { organization: user.organization };
-        }
-        if (user.role === "coordinator") {
-            Id = { groupId: user.groupId };
-        }
-        if (!Id) {
-            throw new Error("Organization not found for the user");
-        }
-        const users = await Usermodel.find(Id)
-            .select("-password").select("-__v").select("-createdAt").select("-updatedAt")
-            .populate("groupId").select("_id name groupcode")
-            .populate("organization").select("_id name");
-        const userList: UserWithGroupName[] = users.map((user: any) => ({
-            ...user.toObject(),
-            groupName: user.groupId?.name ?? "",
-            organizationName: user.organization?.name ?? "",
-            active: user.otpverified,
-        }))
-
-            ;
-
-        return {
-            success: true,
-            users: userList,
-        };
-    } catch (error: any) {
-        throw new Error(error.message);
+    const user = await Usermodel.findById(user1.userId);
+    if (!user) {
+        throw new AppError("User not found", 404, "USER_NOT_FOUND");
     }
+
+    let filter: Record<string, unknown> | null = null;
+
+    if (user.role === "superadmin") {
+        filter = {};
+    } else if (user.role === "admin") {
+        if (!user.organization) {
+            throw new AppError(
+                "Organization not found",
+                404,
+                "ORGANIZATION_NOT_FOUND"
+            );
+        }
+        filter = { organization: user.organization };
+    } else if (user.role === "coordinator") {
+        if (!user.groupId) {
+            throw new AppError("Group not found", 404, "GROUP_NOT_FOUND");
+        }
+        filter = { groupId: user.groupId };
+    } else {
+        throw new AppError("Forbidden", 403, "FORBIDDEN");
+    }
+
+    const users = await Usermodel.find(filter)
+        .select("-password -__v -createdAt -updatedAt")
+        .populate("groupId", "_id name groupCode")
+        .populate("organization", "_id name");
+
+    const userList: UserWithGroupName[] = users.map((u: any) => ({
+        ...u.toObject(),
+        groupName: u.groupId?.name ?? "",
+        organizationName: u.organization?.name ?? "",
+        active: u.otpverified,
+    }));
+
+    return {
+        success: true,
+        users: userList,
+    };
 };
 
 export const getGroup = async (userId: string) => {

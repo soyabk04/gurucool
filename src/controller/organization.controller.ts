@@ -8,7 +8,7 @@ const createOrganizationController = async (req: Request, res: Response, next: N
                 const orgData = req.body.organization;
                 const admin = req.body.organization.users;
                 
-                const file: Express.Multer.File = req.file!
+                const file = req.file;
                 
                 orgData.users = undefined
                 const organization = await createOrganizationService(orgData, admin, file);

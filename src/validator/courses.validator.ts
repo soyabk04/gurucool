@@ -20,10 +20,9 @@ const courseSchema = z.object({
 const chapterSchema = z.object({
   serialNo: z.number().optional(),
   courseId: z.string(),
-  title: z.string().optional(),
-  description: z.string().optional(),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
   videoUrl: z.string().url().optional(),
-
 });
 
 const courseAssignmentSchema = z.object({
@@ -39,8 +38,9 @@ const courseAssignmentSchema = z.object({
 
 const quizSchema = z.object({
   chapterId: objectIdSchema,
-  userId: objectIdSchema,
-})
+  passingMarks: z.number().int().nonnegative(),
+  totalMarks: z.number().int().positive(),
+});
 const questionSchema = z.object({
   quizId: objectIdSchema,
 
@@ -116,7 +116,7 @@ export const validate =
 export const validateMultiple = (schema: z.ZodTypeAny, key: string) =>
   (req: Request, res: Response, next: NextFunction) => {
 
-    const items = req.body;
+    const items = req.body[key];
     if (!Array.isArray(items)) {
       return res.status(400).json({
         success: false,

@@ -15,15 +15,15 @@ import { getVideoStreamUrl } from "../utils/getVideoUrl.js";
 
 export const createCourse = async (
     courseData: Course,
-    userId: string,
+    userInfo:{ userId: string; role: string },
     file: Express.Multer.File
 ) => {
-    const instructor = await Usermodel.findById(userId);
-
+    const instructor = await Usermodel.findById(userInfo.userId);
+    console.log("userInfo.role", userInfo.role);
     if (!instructor) {
-        throw new Error("Instructor not found.");
+        throw new AppError("Instructor not found.", 404, "INSTRUCTOR_NOT_FOUND");
     }
-
+    console.log("userInfo.role", userInfo.role);
     const course = await CourseModel.create({
         ...courseData,
         instructor: instructor._id,
@@ -52,6 +52,11 @@ export const createCourse = async (
         course.thumbnail = key;
         await course.save();
     }
+    const userOrganization = await Usermodel.findById(userInfo.userId).select("organization");
+    if (!userOrganization?.organization) {
+        throw new AppError("User does not belong to any organization.", 400, "USER_NO_ORGANIZATION");
+    }
+    await assignCourseToOrganization(userOrganization.organization.toString(), course._id.toString(), userInfo);
     return { course }
 
 };
@@ -142,11 +147,10 @@ export const getMyCourses = async (userInfo: { userId: string; role: string }) =
         });
 
     if (myCourses.length === 0) {
-        throw new AppError(
-            "No courses found",
-            404,
-            "COURSE_NOT_FOUND"
-        );
+        return {
+            success: true,
+            data: [],
+        };
     }
     const courses = myCourses.map((enrollment) => enrollment.courseId)
     return {
@@ -195,29 +199,103 @@ interface AssignCourseDto {
 }
 export const assignCourseToUsers = async (
     data: AssignCourseDto,
-    coordinatorId: string
+    actor: { userId: string; role: string }
 ) => {
-    try {
+    const coordinatorId = actor.userId;
+    const actorUser = await Usermodel.findById(actor.userId).select(
+        "organization groupId role"
+    );
 
-        console.log('course')
-        const course = await CourseModel.findById(data.courseId);
+    if (!actorUser) {
+        throw new AppError("User not found", 404, "USER_NOT_FOUND");
+    }
 
-        console.log('course')
-        if (!course) {
-            throw new Error("Course not found.");
+    const course = await CourseModel.findById(data.courseId);
+
+    if (!course) {
+        throw new AppError("Course not found.", 404, "COURSE_NOT_FOUND");
+    }
+
+    const users = await Usermodel.find({
+        _id: { $in: data.userIds },
+    });
+
+    if (users.length !== data.userIds.length) {
+        throw new AppError(
+            "Some users do not exist.",
+            400,
+            "USERS_NOT_FOUND"
+        );
+    }
+
+    for (const user of users) {
+        if (actor.role === "admin") {
+            if (
+                !actorUser.organization ||
+                user.organization?.toString() !==
+                    actorUser.organization.toString()
+            ) {
+                throw new AppError(
+                    "Cannot enroll users outside your organization.",
+                    403,
+                    "FORBIDDEN"
+                );
+            }
+        } else if (actor.role === "coordinator") {
+            if (
+                !actorUser.groupId ||
+                user.groupId?.toString() !== actorUser.groupId.toString()
+            ) {
+                throw new AppError(
+                    "Cannot enroll users outside your group.",
+                    403,
+                    "FORBIDDEN"
+                );
+            }
         }
 
-        const users = await Usermodel.find({
-            _id: { $in: data.userIds },
-        });
-
-        if (users.length !== data.userIds.length) {
-            throw new Error("Some users do not exist.");
+        if (!user.organization || !user.groupId) {
+            throw new AppError(
+                "User must belong to an organization and group before enrollment.",
+                400,
+                "USER_NOT_ASSIGNABLE"
+            );
         }
+    }
 
-        const chapters = await ChapterModel.find({
+    if (actor.role === "admin" && actorUser.organization) {
+        const orgAssignment = await OrganizationCourse.findOne({
+            organizationId: actorUser.organization,
             courseId: data.courseId,
+            status: "active",
         });
+        if (!orgAssignment) {
+            throw new AppError(
+                "This course is not assigned to your organization.",
+                403,
+                "COURSE_NOT_ASSIGNED"
+            );
+        }
+    }
+
+    if (actor.role === "coordinator" && actorUser.groupId) {
+        const groupAssignment = await GroupCourse.findOne({
+            groupId: actorUser.groupId,
+            courseId: data.courseId,
+            status: "active",
+        });
+        if (!groupAssignment) {
+            throw new AppError(
+                "This course is not assigned to your group.",
+                403,
+                "COURSE_NOT_ASSIGNED"
+            );
+        }
+    }
+
+    const chapters = await ChapterModel.find({
+        courseId: data.courseId,
+    });
 
         const existingEnrollments = await EnrollmentModel.find({
             courseId: data.courseId,
@@ -241,7 +319,11 @@ export const assignCourseToUsers = async (
             }));
 
         if (enrollments.length === 0) {
-            throw new Error("All selected users are already enrolled.");
+            throw new AppError(
+                "All selected users are already enrolled.",
+                400,
+                "ALREADY_ENROLLED"
+            );
         }
 
         await EnrollmentModel.insertMany(enrollments);
@@ -269,12 +351,6 @@ export const assignCourseToUsers = async (
         return {
             assigned: enrollments.length,
         };
-    } catch (error) {
-
-        throw error;
-    } finally {
-
-    }
 };
 export const getCourses = async (userInfo: { userId: string; role: string }) => {
   if (userInfo.role === "superadmin") {
@@ -403,8 +479,8 @@ export const assignCourseToOrganization = async (
     courseId: string,
     userInfo: { userId: string; role: string }
 ) => {
-    if (userInfo.role !== "superadmin") {
-        throw new Error("Only Super Admin can assign courses.");
+    if (userInfo.role !== "superadmin" && userInfo.role !== "admin") {
+        throw new Error("Only Super Admin or Admin can assign courses.");
     }
 
     const [organization, course] = await Promise.all([
@@ -439,7 +515,24 @@ export const assignCourseToOrganization = async (
     return assignment;
 };
 export const getassignCourseToOrganization = async (userInfo: { userId: string, role: string }) => {
-    const OrganizationCourses = await OrganizationCourse.find()
+    const filter =
+        userInfo.role === "superadmin"
+            ? {}
+            : userInfo.role === "admin"
+              ? {
+                    organizationId: (
+                        await Usermodel.findById(userInfo.userId).select(
+                            "organization"
+                        )
+                    )?.organization,
+                }
+              : null;
+
+    if (filter === null || (userInfo.role === "admin" && !filter.organizationId)) {
+        throw new AppError("Forbidden", 403, "FORBIDDEN");
+    }
+
+    const OrganizationCourses = await OrganizationCourse.find(filter)
         .populate("courseId organizationId");
 
     const result = await Promise.all(
@@ -449,11 +542,8 @@ export const getassignCourseToOrganization = async (userInfo: { userId: string, 
             courseId: OrganizationCourse.courseId,
         }))
     );
-    return result
-
-
-
-}
+    return result;
+};
 
 export const getassignCourseToGroup = async (userInfo: { userId: string, role: string }) => {
     const user = await Usermodel.findById(userInfo.userId)
@@ -479,44 +569,65 @@ export const getOrganizationCourses = async (
         .populate("courseId");
 
     const result = await Promise.all(
-        OrganizationCourses.map(async (OrganizationCourse) => ({
-
-            title: OrganizationCourse.courseId.title,
-            _id: OrganizationCourse.courseId._id,
-        }))
+        OrganizationCourses.map(async (OrganizationCourse) => {
+            const course = OrganizationCourse.courseId as {
+                title?: string;
+                _id?: unknown;
+            } | null;
+            if (!course?._id) {
+                return null;
+            }
+            return {
+                title: course.title,
+                _id: course._id,
+            };
+        })
     );
-    return result
-
-
-
-}
+    return result.filter(Boolean);
+};
 
 export const getChapter = async (chapterId: string, userInfo: { userId: string, role: string }) => {
+    if (!mongoose.Types.ObjectId.isValid(chapterId)) {
+        throw new AppError("Invalid chapter id", 400, "INVALID_CHAPTER_ID");
+    }
+
     const chapter = await ChapterModel.findById(chapterId);
-    if (userInfo.role == 'coordinator') {
+    if (!chapter) {
+        throw new AppError("Chapter not found", 404, "CHAPTER_NOT_FOUND");
+    }
+
+    if (!chapter.videoUrl) {
+        throw new AppError("Video not available", 404, "VIDEO_NOT_FOUND");
+    }
+
+    if (userInfo.role === "coordinator") {
         const user = await Usermodel.findById(userInfo.userId);
-        const courseEn = await GroupCourse.find({ courseId: chapter?.courseId, groupId: user?.groupId });
+        const courseEn = await GroupCourse.find({
+            courseId: chapter.courseId,
+            groupId: user?.groupId,
+            status: "active",
+        });
         if (courseEn.length === 0) {
-            throw new Error("you dont have permission");
+            throw new AppError("Forbidden", 403, "FORBIDDEN");
         }
-        const url = await getVideoStreamUrl(chapter!.videoUrl)
-        return {
-            id: chapter?._id,
-            title: chapter?.title,
-            videoUrl: url
-        }
-    }
-    if (userInfo.role == 'user') {
+    } else if (userInfo.role === "user") {
         const user = await Usermodel.findById(userInfo.userId);
-        const courseEn = await EnrollmentModel.find({ courseId: chapter?.courseId, userId: user?._id });
-        if (!courseEn) {
-            throw new Error("you dont have permission");
+        const courseEn = await EnrollmentModel.find({
+            courseId: chapter.courseId,
+            userId: user?._id,
+            status: "active",
+        });
+        if (courseEn.length === 0) {
+            throw new AppError("Forbidden", 403, "FORBIDDEN");
         }
-        const url = await getVideoStreamUrl(chapter!.videoUrl);
-        return {
-            id: chapter?._id,
-            title: chapter?.title,
-            videoUrl: url
-        }
+    } else {
+        throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
-}
+
+    const url = await getVideoStreamUrl(chapter.videoUrl);
+    return {
+        id: chapter._id,
+        title: chapter.title,
+        videoUrl: url,
+    };
+};

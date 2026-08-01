@@ -20,8 +20,7 @@ const cookieOptions = {
 const createUserController = async (req: Request, res: Response) => {
   const userData = req.body.users;
   const userInfo = req.user;
-  const failedUser = req.body.failedItems;
-  const user = await createUser(userData, userInfo, failedUser);
+  const user = await createUser(userData, userInfo, []);
 
   res.status(201).json({
     success: true,
@@ -144,7 +143,7 @@ export const bulkUploadUsers = async (req: Request, res: Response) => {
   }
 
   const users = await csvToArray(req.file.buffer);
- console.log(users)
+
   res.json({
     success: true,
     data: users,
