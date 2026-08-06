@@ -9,6 +9,7 @@ import {
     ,createGroupController
     ,getOrganizationUsersController, 
     getOrganizationController,
+    getOrganizationDetailsController,
 } from "../controller/organization.controller.js";
 
 import {
@@ -54,7 +55,11 @@ organizationRouter.post(
     organizationValidator,
     asyncHandler(createOrganizationController)
 );
-
+organizationRouter.get(
+  "/details/:organizationId",
+  
+  getOrganizationDetailsController
+);
 organizationRouter.get(
     "/org",
     createRateLimiter(100, 15),

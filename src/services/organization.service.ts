@@ -1,4 +1,4 @@
-import { EnrollmentModel } from "../models/course.model.js";
+import { EnrollmentModel, OrganizationCourse } from "../models/course.model.js";
 import { Groupmodel, Organizationmodel, } from "../models/organization.model.js";
 import { Usermodel } from "../models/user.model.js";
 import type { organization, orgPurchase, group } from "../types/organization.type.js";
@@ -94,7 +94,7 @@ const createOrganizationService = async (
 
         await organization.save({ session });
         await session.commitTransaction();
-        assignCourseToOrganization(organization._id.toString(), "64a7e1f0c3b5f8b9d6e4a2c1");
+        
         return {
             success: true,
             organization,
@@ -124,6 +124,55 @@ export const getOrganization = async () => {
     return result
 
 
+}
+
+export async function getOrganizationDetailsService(
+  organizationId: string
+) {
+  if (!mongoose.Types.ObjectId.isValid(organizationId)) {
+    throw new Error("Invalid organization id");
+  }
+
+  const organization = await Organizationmodel.findById(organizationId)
+    .select("name domain logoUrl status createdAt updatedAt")
+    .lean();
+
+  if (!organization) {
+    throw new Error("Organization not found");
+  }
+
+  const [users, groups, courses, coordinators] = await Promise.all([
+    Usermodel.countDocuments({
+      organization: organizationId,
+      
+    }),
+
+    Groupmodel.countDocuments({
+      organization: organizationId,
+    }),
+
+    OrganizationCourse.countDocuments({
+      organizationId,
+    }),
+
+    Usermodel.countDocuments({
+      organization: organizationId,
+      role: "coordinator",
+    }),
+  ]);
+
+  return {
+    success: true,
+    res: {
+      ...organization,
+      stats: {
+        users,
+        groups,
+        courses,
+        coordinators,
+      },
+    },
+  };
 }
 
 const createGroupService = async (

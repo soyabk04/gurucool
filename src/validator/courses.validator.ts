@@ -117,6 +117,7 @@ export const validateMultiple = (schema: z.ZodTypeAny, key: string) =>
   (req: Request, res: Response, next: NextFunction) => {
 
     const items = req.body[key];
+    console.log("items", req.body);
     if (!Array.isArray(items)) {
       return res.status(400).json({
         success: false,

@@ -1,4 +1,4 @@
-import { createOrganizationService, createGroupService,getOraganizationConfig, getOrganizationUsersService, getOrganization, getGroup } from "../services/organization.service.js";
+import { createOrganizationService, createGroupService,getOraganizationConfig, getOrganizationUsersService, getOrganization, getGroup, getOrganizationDetailsService } from "../services/organization.service.js";
 import { type Request, type Response, type NextFunction } from "express";
 import { AppError } from "../errors/AppError.js";
 
@@ -21,6 +21,27 @@ const getOrganizationController= async (req:Request,res:Response)=>{
                 success:true,
                 res:response
         })
+}
+
+
+
+interface OrganizationParams {
+  organizationId: string;
+}
+
+export async function getOrganizationDetailsController(
+  req: Request<OrganizationParams>,
+  res: Response,
+  next: NextFunction
+) {
+  const { organizationId } = req.params;
+  console.log("organizationId", organizationId);
+  if (!organizationId) {
+    return next(new AppError("Organization ID is required", 400, "BAD_REQUEST"));
+  }
+  const result = await getOrganizationDetailsService(organizationId);
+
+  return res.status(200).json(result);
 }
 const getGroupController= async (req:Request,res:Response,next:NextFunction)=>{
         const user=req.user;

@@ -1,14 +1,51 @@
 import { Router } from "express";
-import  {createUserController,generateAccessTokenController,otpVerificationController,userLoginController,logoutUser, getUsersController, checkLoginController}  from "../controller/user.controller.js";
-import {userSigninValidator, userSignupValidator} from "../validator/users.validator.js";
-import { authMiddleware,notLoggedIn } from "../middleware/authentication.middleware.js";
-import { authorizeRoles } from "../middleware/Authorization.middleware.js";
-import { type Request, type Response } from "express";
-import { asyncHandler } from "../middleware/asyncHandler.js";
-import { bulkUploadUsers } from "../controller/user.controller.js";
-import { upload, uploadCsv } from "../middleware/upload.middleware.js";
-import { uploadFile } from "../controller/upload.controller.js";
-import {createRateLimiter } from "../middleware/rateLimit.middleware.js"
+import  {createUserController,
+  generateAccessTokenController
+  ,userLoginController,
+  logoutUser, 
+  getUsersController, 
+  checkLoginController
+}  from "../controller/user.controller.js";
+
+import {
+  userSigninValidator, 
+  userSignupValidator
+} from "../validator/users.validator.js";
+
+import { 
+  authMiddleware,
+  notLoggedIn 
+} from "../middleware/authentication.middleware.js";
+
+import { 
+  authorizeRoles 
+} from "../middleware/Authorization.middleware.js";
+
+import { 
+  type Request,
+   type Response 
+  } from "express";
+
+import { 
+  asyncHandler 
+} from "../middleware/asyncHandler.js";
+
+import { 
+  bulkUploadUsers
+ } from "../controller/user.controller.js";
+
+import {
+   upload, 
+   uploadCsv 
+  } from "../middleware/upload.middleware.js";
+
+import { 
+  uploadFile 
+} from "../controller/upload.controller.js";
+
+import {
+  createRateLimiter
+ } from "../middleware/rateLimit.middleware.js"
 
 
 const userRouter = Router();
