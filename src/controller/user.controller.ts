@@ -1,4 +1,4 @@
-import { createUser, getUsers,checkLogin } from "../services/user.service.js";
+import { createUser, getUsers,checkLogin, forgetPasswordLink } from "../services/user.service.js";
 import { userlogin, verifyUser } from "../services/user.service.js";
 import { NextFunction, type Request, type Response } from "express";
 import { generateToken, generateAccessToken } from "../utils/jwtToken.js";
@@ -30,6 +30,7 @@ const createUserController = async (req: Request, res: Response) => {
 
 const getUsersController = async (req: Request, res: Response) => {
   const user = req.user;
+  const organizationId = req.query.organizationId as string | undefined;
   if (!user) {
     throw new AppError("User not found", 401, "UNAUTHORIZED");
   }
@@ -37,7 +38,7 @@ const getUsersController = async (req: Request, res: Response) => {
   const page = Number(req.query.page) || 1;
   const limit = Number(req.query.limit) || 10;
 
-  const result = await getUsers(user, page, limit);
+  const result = await getUsers(user, page, limit, organizationId?organizationId: undefined);
 
   res.status(200).json(result);
 };
@@ -176,8 +177,28 @@ const checkLoginController = (
     next(err);
   }
 };
+const sendResetPasswordEmailController = async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  const result = await forgetPasswordLink(email);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+  });
+};
+// const resetPasswordController = async (req: Request, res: Response) => {
+//   const { token, newPassword } = req.body;
+
+//   const result = await resetPassword(token, newPassword);
+
+//   res.status(200).json({
+//     success: true,
+//     message: result.message,
+//   });
+// };
 
 export {
   createUserController, userLoginController, generateAccessTokenController,
-  otpVerificationController, getUsersController, logoutUser,checkLoginController
+  otpVerificationController, getUsersController, logoutUser,checkLoginController,sendResetPasswordEmailController
 };

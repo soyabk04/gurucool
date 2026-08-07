@@ -19,6 +19,7 @@ export interface organization {
     createdAt?: Date;
     updatedAt?: Date;
 }
+
 export interface group {
     name:string;
     organization:Types.ObjectId;

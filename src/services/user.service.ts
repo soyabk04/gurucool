@@ -3,13 +3,15 @@ import { comparepass, hashpass } from "../utils/passwordhash.js";
 import { generateOTP } from "../utils/otpgenerator.js";
 import mongoose from "mongoose";
 import { generatePassword } from "../utils/passwordGenerator.js";
-import { sendWelcomeEmail } from "../utils/sendemail.js";
+import { sendForgetPasswordEmail, sendWelcomeEmail } from "../utils/sendemail.js";
 import jwt from "jsonwebtoken";
 import { Groupmodel, Organizationmodel } from "../models/organization.model.js";
 import { ATJWTKEY } from "../config/env.config.js";
 import { ErrorCode } from "../errors/ErrorCode.js";
 import { AppError } from "../errors/AppError.js";
 import { emailQueue } from "../queue/email.queue.js";
+import { organization } from "../types/organization.type.js";
+import { User } from "../types/user.type.js";
 
 
 
@@ -40,7 +42,7 @@ export const createUser = async (
     }
 
     creatorOrgId = creator.organization._id as mongoose.Types.ObjectId;
-    orgName = (creator.organization as { name: string }).name;
+    const orgName = (creator.organization as unknown as organization | null)?.name;
   }
 
   for (const userData of users) {
@@ -133,11 +135,11 @@ export const createUser = async (
       });
 
       await newUser.save();
-
+      const organization = await Organizationmodel.findById(targetOrgId);
       await emailQueue.add("welcome-email", {
-        user:newUser,
+        user: newUser,
         password: plainPassword,
-        orgName,
+        organization,
       });
 
       // Send the OTP required to verify this account before first login.
@@ -213,7 +215,8 @@ export const getUsers = async (
     role: string;
   },
   page = 1,
-  limit = 10
+  limit = 10,
+  organizationId?: string
 ) => {
   const skip = (page - 1) * limit;
 
@@ -227,6 +230,29 @@ export const getUsers = async (
   }
 
   if (userInfo.role === "superadmin") {
+    if (organizationId) {
+      const filter = { organization: organizationId };
+
+      const [users, total] = await Promise.all([
+        Usermodel.find(filter)
+          .select("-password")
+          .skip(skip)
+          .limit(limit)
+          .sort({ createdAt: -1 }),
+        Usermodel.countDocuments(filter),
+      ]);
+
+      return {
+        success: true,
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
     const [users, total] = await Promise.all([
       Usermodel.find()
         .select("-password")
@@ -388,20 +414,61 @@ export const verifyUser = async (userId: string, otp: string) => {
 
 };
 
-export const checkLogin=(accesstoken:string)=>{
+export const checkLogin = (accesstoken: string) => {
 
-     try {
-       jwt.verify(accesstoken,ATJWTKEY);
-     } catch {
-      throw new AppError(
+  try {
+    jwt.verify(accesstoken, ATJWTKEY);
+  } catch {
+    throw new AppError(
       "Invalid token",
       401,
       "INVALID_ACCESSTOKEN"
     );
-     }
-    return {success:true,message:"valid token"}
+  }
+  return { success: true, message: "valid token" }
 }
 
+export const forgetPasswordLink = async (email: string) => {
 
+  const user = await Usermodel.findOne({ email })
+    .populate<{ organization: organization }>("organization").lean();
+
+
+  if (!user) {
+    throw new AppError(
+      "User not found",
+      404,
+      ErrorCode.USER_NOT_FOUND
+    );
+  }
+
+  const resetToken = jwt.sign(
+    { userId: user._id },
+    ATJWTKEY,
+    { expiresIn: "1h" }
+  );
+  if (!user.organization) {
+    throw new AppError(
+      "Organization not found for the user",
+      404,
+      "ORGANIZATION_NOT_FOUND"
+    );
+  }
+  const domain = user.organization.domain;
+  if (!user.organization.domain) {
+    throw new AppError(
+      "Organization domain not found",
+      404,
+      "ORGANIZATION_DOMAIN_NOT_FOUND"
+    );
+  }
+
+  const resetLink = `https://${user.organization.domain}/user/reset-password?token=${resetToken}`;
+  await sendForgetPasswordEmail( user, resetLink );
+  console.log(`Password reset link sent to ${user.email}: ${resetLink}`);
+  return {
+    message: "Password reset link has been sent to your email." // In a real application, you wouldn't return this in the response.
+  };
+}
 
 

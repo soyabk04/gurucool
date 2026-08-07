@@ -15,7 +15,7 @@ import { getVideoStreamUrl } from "../utils/getVideoUrl.js";
 
 export const createCourse = async (
     courseData: Course,
-    userInfo:{ userId: string; role: string },
+    userInfo: { userId: string; role: string },
     file: Express.Multer.File
 ) => {
     const instructor = await Usermodel.findById(userInfo.userId);
@@ -233,7 +233,7 @@ export const assignCourseToUsers = async (
             if (
                 !actorUser.organization ||
                 user.organization?.toString() !==
-                    actorUser.organization.toString()
+                actorUser.organization.toString()
             ) {
                 throw new AppError(
                     "Cannot enroll users outside your organization.",
@@ -297,135 +297,152 @@ export const assignCourseToUsers = async (
         courseId: data.courseId,
     });
 
-        const existingEnrollments = await EnrollmentModel.find({
+    const existingEnrollments = await EnrollmentModel.find({
+        courseId: data.courseId,
+        userId: { $in: data.userIds },
+    });
+
+    const enrolledIds = new Set(
+        existingEnrollments.map((e) => e.userId.toString())
+    );
+
+    const enrollments = users
+        .filter((user) => !enrolledIds.has(user._id.toString()))
+        .map((user) => ({
+            userId: user._id,
             courseId: data.courseId,
-            userId: { $in: data.userIds },
-        });
+            organizationId: user.organization,
+            groupId: user.groupId,
+            enrolledBy: coordinatorId,
+            status: "active",
+            progress: 0,
+        }));
 
-        const enrolledIds = new Set(
-            existingEnrollments.map((e) => e.userId.toString())
+    if (enrollments.length === 0) {
+        throw new AppError(
+            "All selected users are already enrolled.",
+            400,
+            "ALREADY_ENROLLED"
         );
+    }
 
-        const enrollments = users
-            .filter((user) => !enrolledIds.has(user._id.toString()))
-            .map((user) => ({
-                userId: user._id,
-                courseId: data.courseId,
-                organizationId: user.organization,
-                groupId: user.groupId,
-                enrolledBy: coordinatorId,
-                status: "active",
-                progress: 0,
-            }));
+    await EnrollmentModel.insertMany(enrollments);
 
-        if (enrollments.length === 0) {
-            throw new AppError(
-                "All selected users are already enrolled.",
-                400,
-                "ALREADY_ENROLLED"
+    const progressDocs = [];
+
+    for (const enrollment of enrollments) {
+        for (const chapter of chapters) {
+            progressDocs.push({
+                userId: enrollment.userId,
+                courseId: enrollment.courseId,
+                chapterId: chapter._id,
+                watchedDuration: 0,
+                completed: false,
+            });
+        }
+    }
+
+    if (progressDocs.length > 0) {
+        await CourseProgressModel.insertMany(progressDocs);
+    }
+
+
+
+    return {
+        assigned: enrollments.length,
+    };
+};
+export const getCourses = async (userInfo: { userId: string; role: string }, organizationId?: string) => {
+    if (userInfo.role === "superadmin") {
+        if (organizationId) {
+            const courses = await OrganizationCourse.find({
+                organizationId: organizationId,
+            }).populate("courseId",);
+
+            return Promise.all(
+                courses
+                    .filter((item: any) => item.courseId)
+                    .map(async (item: any) => ({
+                        _id: item.courseId._id,
+                        title: item.courseId.title,
+                        thumbnail: item.courseId.thumbnail
+                            ? await getVideoStreamUrl(item.courseId.thumbnail)
+                            : null,
+                    }))
             );
         }
+        const courses = await CourseModel.find().select("_id title thumbnail");
 
-        await EnrollmentModel.insertMany(enrollments);
+        return Promise.all(
+            courses.map(async (course) => ({
+                _id: course._id,
+                title: course.title,
+                thumbnail: course.thumbnail
+                    ? await getVideoStreamUrl(course.thumbnail)
+                    : null,
+            }))
+        );
+    }
 
-        const progressDocs = [];
+    if (userInfo.role === "admin") {
+        const courses = await OrganizationCourse.find({
+            adminId: userInfo.userId,
+        }).populate("courseId", "_id title thumbnail");
 
-        for (const enrollment of enrollments) {
-            for (const chapter of chapters) {
-                progressDocs.push({
-                    userId: enrollment.userId,
-                    courseId: enrollment.courseId,
-                    chapterId: chapter._id,
-                    watchedDuration: 0,
-                    completed: false,
-                });
-            }
-        }
+        return Promise.all(
+            courses
+                .filter((item: any) => item.courseId)
+                .map(async (item: any) => ({
+                    _id: item.courseId._id,
+                    title: item.courseId.title,
+                    thumbnail: item.courseId.thumbnail
+                        ? await getVideoStreamUrl(item.courseId.thumbnail)
+                        : null,
+                }))
+        );
+    }
 
-        if (progressDocs.length > 0) {
-            await CourseProgressModel.insertMany(progressDocs);
-        }
+    if (userInfo.role === "coordinator") {
+        const user = await Usermodel.findById(userInfo.userId).select("groupId");
 
+        const courses = await GroupCourse.find({
+            groupId: user?.groupId,
+        }).populate("courseId", "_id title thumbnail");
 
+        return Promise.all(
+            courses
+                .filter((item: any) => item.courseId)
+                .map(async (item: any) => ({
+                    _id: item.courseId._id,
+                    title: item.courseId.title,
+                    thumbnail: item.courseId.thumbnail
+                        ? await getVideoStreamUrl(item.courseId.thumbnail)
+                        : null,
+                }))
+        );
+    }
 
-        return {
-            assigned: enrollments.length,
-        };
-};
-export const getCourses = async (userInfo: { userId: string; role: string }) => {
-  if (userInfo.role === "superadmin") {
-    const courses = await CourseModel.find().select("_id title thumbnail");
+    if (userInfo.role === "user") {
+        const enrollments = await EnrollmentModel.find({
+            userId: userInfo.userId,
+        })
+            .populate("courseId", "_id title thumbnail")
+            .lean();
 
-    return Promise.all(
-      courses.map(async (course) => ({
-        _id: course._id,
-        title: course.title,
-        thumbnail: course.thumbnail
-          ? await getVideoStreamUrl(course.thumbnail)
-          : null,
-      }))
-    );
-  }
+        return Promise.all(
+            (enrollments as any[])
+                .filter((e) => e.courseId)
+                .map(async (e) => ({
+                    _id: e.courseId._id,
+                    title: e.courseId.title,
+                    thumbnail: e.courseId.thumbnail
+                        ? await getVideoStreamUrl(e.courseId.thumbnail)
+                        : null,
+                }))
+        );
+    }
 
-  if (userInfo.role === "admin") {
-    const courses = await OrganizationCourse.find({
-      adminId: userInfo.userId,
-    }).populate("courseId", "_id title thumbnail");
-
-    return Promise.all(
-      courses
-        .filter((item: any) => item.courseId)
-        .map(async (item: any) => ({
-          _id: item.courseId._id,
-          title: item.courseId.title,
-          thumbnail: item.courseId.thumbnail
-            ? await getVideoStreamUrl(item.courseId.thumbnail)
-            : null,
-        }))
-    );
-  }
-
-  if (userInfo.role === "coordinator") {
-    const user = await Usermodel.findById(userInfo.userId).select("groupId");
-
-    const courses = await GroupCourse.find({
-      groupId: user?.groupId,
-    }).populate("courseId", "_id title thumbnail");
-
-    return Promise.all(
-      courses
-        .filter((item: any) => item.courseId)
-        .map(async (item: any) => ({
-          _id: item.courseId._id,
-          title: item.courseId.title,
-          thumbnail: item.courseId.thumbnail
-            ? await getVideoStreamUrl(item.courseId.thumbnail)
-            : null,
-        }))
-    );
-  }
-
-  if (userInfo.role === "user") {
-    const enrollments = await EnrollmentModel.find({
-      userId: userInfo.userId,
-    })
-      .populate("courseId", "_id title thumbnail")
-      .lean();
-
-    return Promise.all(
-      (enrollments as any[])
-        .filter((e) => e.courseId)
-        .map(async (e) => ({
-          _id: e.courseId._id,
-          title: e.courseId.title,
-          thumbnail: e.courseId.thumbnail
-            ? await getVideoStreamUrl(e.courseId.thumbnail)
-            : null,
-        }))
-    );
-  }
-
-  return [];
+    return [];
 };
 export const assignCourseToGroup = async (
     groupId: string,
@@ -463,13 +480,14 @@ export const assignCourseToGroup = async (
         throw new Error("Course already assigned to this group.");
     }
 
-    return GroupCourse.create({
+    const assignment = await GroupCourse.create({
         organizationCourseId: organizationCourse._id,
         organizationId: group.organization,
         groupId,
         courseId,
         assignedBy: userInfo.userId,
     });
+    return assignment;
 };
 
 
@@ -519,14 +537,14 @@ export const getassignCourseToOrganization = async (userInfo: { userId: string, 
         userInfo.role === "superadmin"
             ? {}
             : userInfo.role === "admin"
-              ? {
+                ? {
                     organizationId: (
                         await Usermodel.findById(userInfo.userId).select(
                             "organization"
                         )
                     )?.organization,
                 }
-              : null;
+                : null;
 
     if (filter === null || (userInfo.role === "admin" && !filter.organizationId)) {
         throw new AppError("Forbidden", 403, "FORBIDDEN");

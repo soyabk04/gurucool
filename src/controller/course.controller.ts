@@ -93,8 +93,9 @@ export const assignCourseToUsersController = async (
 };
 export const getCoursesController = async (req: Request, res: Response) => {
     const user = req.user!;
+    const organizationId = req.query.organizationId as string | undefined
 
-    const response = await getCourses(user)
+    const response = await getCourses(user, organizationId?organizationId:undefined);
    
     if (response) {
         res.send({

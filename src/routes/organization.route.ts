@@ -10,6 +10,7 @@ import {
     ,getOrganizationUsersController, 
     getOrganizationController,
     getOrganizationDetailsController,
+    editOrganizationController,
 } from "../controller/organization.controller.js";
 
 import {
@@ -48,7 +49,7 @@ organizationRouter.post(
 
 organizationRouter.post(
     "/",
-    createRateLimiter(5, 15, "Too many organization creation requests."),
+    createRateLimiter(500, 15, "Too many organization creation requests."),
     authMiddleware,
     authorizeRoles("superadmin"),
     upload.single("logo"),
@@ -64,7 +65,7 @@ organizationRouter.get(
     "/org",
     createRateLimiter(100, 15),
     authMiddleware,
-    authorizeRoles("superadmin"),
+    authorizeRoles("superadmin","admin"),
     getOrganizationController
 );
 
@@ -97,6 +98,15 @@ organizationRouter.get(
     "/groups",
     createRateLimiter(100, 15),
     authMiddleware,
-    authorizeRoles("admin"),
+    authorizeRoles("admin","superadmin"),
     asyncHandler(getGroupController)
+);
+
+organizationRouter.patch(
+  "/edit/:organizationId",
+  createRateLimiter(20, 15, "Too many organization edit requests."),
+  authMiddleware,
+  authorizeRoles("superadmin", "admin"),
+  upload.single("logo"),
+  asyncHandler(editOrganizationController)
 );

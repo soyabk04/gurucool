@@ -4,7 +4,8 @@ import  {createUserController,
   ,userLoginController,
   logoutUser, 
   getUsersController, 
-  checkLoginController
+  checkLoginController,
+  sendResetPasswordEmailController
 }  from "../controller/user.controller.js";
 
 import {
@@ -46,6 +47,7 @@ import {
 import {
   createRateLimiter
  } from "../middleware/rateLimit.middleware.js"
+import { Usermodel } from "../models/user.model.js";
 
 
 const userRouter = Router();
@@ -82,12 +84,13 @@ userRouter.get(
   "/isloggedin",
   createRateLimiter(100, 15),
   authMiddleware,
-  (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = await Usermodel.findById(req.user?.userId).select("name role").lean();
     res.status(200).json({
       success: true,
-      user: req.user,
+      user: user,
     });
-  }
+  })
 );
 
 userRouter.get(
@@ -136,5 +139,9 @@ userRouter.post(
   createRateLimiter(30, 15),
   asyncHandler(checkLoginController)
 );
-
+userRouter.post(
+  "/send-reset-password-email",
+  createRateLimiter(5, 15, "Too many password reset requests."),
+  asyncHandler(sendResetPasswordEmailController)
+)
 export default userRouter;

@@ -14,6 +14,7 @@ import {getDomains} from './services/organization.service.js'
 dotenv.config();
 await dbConnect();
 
+
 const app = express();
 
 app.use(
@@ -26,10 +27,10 @@ app.use(
         }
 
         const hostname = new URL(origin).hostname.toLowerCase();
-        const allowedOrigins = (await getDomains()).map((d) =>
+                const allowedOrigins = (await getDomains()).data.map((d) =>
           d.toLowerCase().trim()
-        );
-
+       );;
+            
         if (allowedOrigins.includes(hostname)) {
           return callback(null, true);
         }
