@@ -6,28 +6,21 @@ export const sendmail = async (
   subject: string,
   message: string,
   recipient: string,
-  isHtml: boolean = false
+  isHtml = false
 ) => {
   try {
     if (!process.env.RESEND_API_KEY) {
       throw new Error("RESEND_API_KEY is not configured");
     }
 
-    const emailData = isHtml
-      ? {
-          from: "Gurucool <onboarding@resend.dev>",
-          to: [recipient],
-          subject,
-          html: message,
-        }
-      : {
-          from: "Gurucool <onboarding@resend.dev>",
-          to: [recipient],
-          subject,
-          text: message,
-        };
-
-    const { data, error } = await resend.emails.send(emailData);
+    const { data, error } = await resend.emails.send({
+      from: "Gurucool <noreply@soyab-dev.in>",
+      to: [recipient],
+      subject,
+      ...(isHtml
+        ? { html: message }
+        : { text: message }),
+    });
 
     if (error) {
       console.error("Resend email error:", error);
@@ -207,7 +200,7 @@ export const sendWelcomeEmail=async (user:any,password:string,organization:any)=
 
   const subject=`Welcome to ${organization.name}!`;
   const message=emailBody;
-
+  console.log(22)
   await sendmail(subject, message, user.email, true);
 }
 

@@ -11,6 +11,7 @@ import { organizationRouter } from './routes/organization.route.js';
 import { analyticsRouter } from './routes/analytics.routes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
 import {getDomains} from './services/organization.service.js'
+import { sendmail } from './utils/sendemail.js';
 dotenv.config();
 await dbConnect();
 
@@ -45,6 +46,7 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies
 app.use("/api/auth", userRouter); // Import and use user routes
