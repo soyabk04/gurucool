@@ -1,33 +1,48 @@
 import nodemailer from "nodemailer";
 import { gmailId,gmailPass } from "../config/env.config.js";
 // Create a transporter using SMTP
-export const sendmail=async (subject:string, message:string,recipient:string, isHtml:boolean=false)=>{
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // use SSL (upgrade connection to SSL after connecting)
-  auth: {
-    user: gmailId ,
-    pass: gmailPass,
-  },
-});
+export const sendmail = async (
+  subject: string,
+  message: string,
+  recipient: string,
+  isHtml: boolean = false
+) => {
+  try {
+    if (!gmailId || !gmailPass) {
+      throw new Error("Gmail credentials are missing");
+    }
 
-try {
-  const info = await transporter.sendMail({
-    from: '"gurucool Team" <team@example.com>', // sender address
-    to: recipient, // list of recipients
-    subject: subject, // subject line
-    text: isHtml ? undefined : message, // plain text body
-    html: isHtml ? message : `<b>${message}</b>`, // HTML body
-  });
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: gmailId,
+        pass: gmailPass,
+      },
+    });
 
-  console.log("Message sent: %s", info.messageId);
-  // Preview URL is only available when using an Ethereal test account
-  console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
-} catch (err) {
-  console.error("Error while sending mail:", err);
-}
-}
+    // Verify SMTP connection/authentication
+    await transporter.verify();
+
+    console.log("SMTP connection successful");
+
+    const info = await transporter.sendMail({
+      from: `"Gurucool Team" <${gmailId}>`,
+      to: recipient,
+      subject,
+      text: isHtml ? undefined : message,
+      html: isHtml ? message : `<p>${message}</p>`,
+    });
+
+    console.log("Message sent:", info.messageId);
+
+    return info;
+  } catch (error) {
+    console.error("EMAIL ERROR:", error);
+    throw error;
+  }
+};
 
   let template =
 `<!DOCTYPE html>
