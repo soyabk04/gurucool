@@ -20,7 +20,7 @@ export const emailWorker = new Worker(
 );
 
 export const forgotPasswordWorker = new Worker(
-  "emailQueue",
+  "passwordResetQueue",
   async (job) => {
     const { user,resetLink } = job.data;
     console.log(`Processing job ${job.id} for user ${user.email}`);

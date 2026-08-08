@@ -1,4 +1,4 @@
-import { createChapter, assignCourseToUsers, getMyCourses, getChapter, getOrganizationCourses, getassignCourseToOrganization, createCourse, getCourse, createQuestion, createQuiz, assignCourseToGroup, assignCourseToOrganization, getCourses, getassignCourseToGroup } from "../services/course.service.js";
+import { createChapter, assignCourseToUsers, getMyCourses, updateChapterProgressService,getCourseProgressService,getChapter, getOrganizationCourses, getassignCourseToOrganization, createCourse, getCourse, createQuestion, createQuiz, assignCourseToGroup, assignCourseToOrganization, getCourses, getassignCourseToGroup } from "../services/course.service.js";
 import { type Request, type Response, type NextFunction } from "express";
 
 
@@ -336,4 +336,149 @@ export const getOrganizationCoursesController = async (
 
         next(error);
     }
+};
+
+export const updateChapterProgressController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    // Authentication check
+    if (!req.user?.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const userId = req.user.userId.toString();
+
+    const { courseId, chapterId } = req.params;
+
+    // Validate params
+    if (
+      typeof courseId !== "string" ||
+      typeof chapterId !== "string"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid courseId or chapterId",
+      });
+    }
+
+    const {
+      watchedDuration,
+      completed = false,
+    } = req.body;
+
+    // Validate watched duration
+    if (
+      watchedDuration === undefined ||
+      watchedDuration === null
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "watchedDuration is required",
+      });
+    }
+
+    const numericWatchedDuration =
+      Number(watchedDuration);
+
+    if (
+      !Number.isFinite(numericWatchedDuration) ||
+      numericWatchedDuration < 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "watchedDuration must be a valid number",
+      });
+    }
+
+    // Validate completed
+    if (typeof completed !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "completed must be a boolean",
+      });
+    }
+
+    // Update progress
+    const progress =
+      await updateChapterProgressService({
+        userId,
+        courseId,
+        chapterId,
+        watchedDuration: numericWatchedDuration,
+        completed,
+      });
+    return res.status(200).json({
+      success: true,
+      message: completed
+        ? "Chapter completed successfully"
+        : "Chapter progress updated successfully",
+      data: progress,
+    });
+  } catch (error: any) {
+    console.error(
+      "Update chapter progress error:",
+      error
+    );
+
+    return res.status(400).json({
+      success: false,
+      message:
+        error?.message ||
+        "Failed to update chapter progress",
+    });
+  }
+};
+
+export const getCourseProgressController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    // Make sure user is authenticated
+    if (!req.user?.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const userId = req.user.userId.toString();
+
+    const { courseId } = req.params;
+
+    // Validate courseId
+    if (typeof courseId !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course ID",
+      });
+    }
+
+    const progress = await getCourseProgressService(
+      userId,
+      courseId
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: progress,
+    });
+  } catch (error: any) {
+    console.error(
+      "Get course progress error:",
+      error
+    );
+
+    return res.status(400).json({
+      success: false,
+      message:
+        error?.message ||
+        "Failed to get course progress",
+    });
+  }
 };

@@ -649,3 +649,270 @@ export const getChapter = async (chapterId: string, userInfo: { userId: string, 
         videoUrl: url,
     };
 };
+
+interface UpdateProgressData {
+    userId: string;
+    courseId: string;
+    chapterId: string;
+    watchedDuration: number;
+    completed?: boolean;
+}
+
+interface UpdateProgressData {
+  userId: string;
+  courseId: string;
+  chapterId: string;
+  watchedDuration: number;
+  completed?: boolean;
+}
+
+export const updateChapterProgressService = async ({
+  userId,
+  courseId,
+  chapterId,
+  watchedDuration,
+  completed = false,
+}: UpdateProgressData) => {
+  // --------------------------------
+  // 1. Validate IDs
+  // --------------------------------
+
+  if (
+    !mongoose.Types.ObjectId.isValid(userId) ||
+    !mongoose.Types.ObjectId.isValid(courseId) ||
+    !mongoose.Types.ObjectId.isValid(chapterId)
+  ) {
+    throw new Error(
+      "Invalid user, course, or chapter ID"
+    );
+  }
+
+  // --------------------------------
+  // 2. Validate watched duration
+  // --------------------------------
+
+  if (
+    !Number.isFinite(watchedDuration) ||
+    watchedDuration < 0
+  ) {
+    throw new Error(
+      "Watched duration cannot be negative"
+    );
+  }
+
+  // --------------------------------
+  // 3. Check chapter
+  // --------------------------------
+
+  const chapter = await ChapterModel.findOne({
+    _id: chapterId,
+    courseId,
+  }).select("_id");
+
+  if (!chapter) {
+    throw new Error("Chapter not found");
+  }
+
+  // --------------------------------
+  // 4. Check enrollment
+  // --------------------------------
+
+  const enrollment = await EnrollmentModel.findOne({
+    userId,
+    courseId,
+  }).select("_id progress");
+
+  if (!enrollment) {
+    throw new Error(
+      "You are not enrolled in this course"
+    );
+  }
+
+  // --------------------------------
+  // 5. Build progress update
+  // --------------------------------
+
+  const update: {
+    $max: {
+      watchedDuration: number;
+    };
+    $set?: {
+      completed: boolean;
+    };
+  } = {
+    $max: {
+      watchedDuration,
+    },
+  };
+
+  if (completed) {
+    update.$set = {
+      completed: true,
+    };
+  }
+
+  // --------------------------------
+  // 6. Create or update progress
+  // --------------------------------
+
+  const progress =
+    await CourseProgressModel.findOneAndUpdate(
+      {
+        userId,
+        courseId,
+        chapterId,
+      },
+      update,
+      {
+        returnDocument: "after",
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+  // --------------------------------
+  // 7. Calculate course progress
+  // --------------------------------
+
+  const totalChapters =
+    await ChapterModel.countDocuments({
+      courseId,
+    });
+
+  const completedChapters =
+    await CourseProgressModel.countDocuments({
+      userId,
+      courseId,
+      completed: true,
+    });
+
+  const courseProgress =
+    totalChapters === 0
+      ? 0
+      : Math.round(
+          (completedChapters / totalChapters) * 100
+        );
+
+  // --------------------------------
+  // 8. Update enrollment progress
+  // --------------------------------
+
+  await EnrollmentModel.updateOne(
+    {
+      _id: enrollment._id,
+    },
+    {
+      $set: {
+        progress: courseProgress,
+      },
+    }
+  );
+
+  // --------------------------------
+  // 9. Return everything
+  // --------------------------------
+
+  return {
+    progress,
+    courseProgress,
+    completedChapters,
+    totalChapters,
+  };
+};
+
+export const getCourseProgressService = async (
+  userId: string,
+  courseId: string
+) => {
+  // Validate IDs
+  if (
+    !mongoose.Types.ObjectId.isValid(userId) ||
+    !mongoose.Types.ObjectId.isValid(courseId)
+  ) {
+    throw new Error("Invalid user or course ID");
+  }
+
+  // Check enrollment
+  const enrollment = await EnrollmentModel.findOne({
+    userId,
+    courseId,
+  }).select("_id progress");
+
+  if (!enrollment) {
+    throw new Error(
+      "You are not enrolled in this course"
+    );
+  }
+
+  // Get course chapters
+  const chapters = await ChapterModel.find({
+    courseId,
+  })
+    .sort({ order: 1 })
+    .select("_id title order type");
+
+  // Get user's chapter progress
+  const progress = await CourseProgressModel.find({
+    userId,
+    courseId,
+  }).select(
+    "chapterId watchedDuration completed"
+  );
+
+  // Map progress by chapter
+  const progressMap = new Map(
+    progress.map((item) => [
+      item.chapterId.toString(),
+      item,
+    ])
+  );
+
+  // Combine chapters with progress
+  const chaptersWithProgress = chapters.map(
+    (chapter) => {
+      const chapterProgress = progressMap.get(
+        chapter._id.toString()
+      );
+
+      return {
+        _id: chapter._id,
+        title: chapter.title,
+
+        watchedDuration:
+          chapterProgress?.watchedDuration ?? 0,
+
+        completed:
+          chapterProgress?.completed ?? false,
+      };
+    }
+  );
+
+  const totalChapters =
+    chaptersWithProgress.length;
+
+  const completedChapters =
+    chaptersWithProgress.filter(
+      (chapter) => chapter.completed
+    ).length;
+
+  const percentage =
+    totalChapters === 0
+      ? 0
+      : Math.round(
+          (completedChapters / totalChapters) * 100
+        );
+
+  return {
+    courseId,
+
+    progress: enrollment.progress ?? percentage,
+
+    percentage,
+
+    totalChapters,
+
+    completedChapters,
+
+    chapters: chaptersWithProgress,
+  };
+};

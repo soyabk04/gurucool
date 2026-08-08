@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createChapterController,getCoursesController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController } from "../controller/course.controller.js";
+import { createChapterController,getCoursesController,updateChapterProgressController,getCourseProgressController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController } from "../controller/course.controller.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { authMiddleware } from "../middleware/authentication.middleware.js";
 import { Assignmentvalidator, chapterValidator, courseValidator, questionValidator, quizValidator } from "../validator/courses.validator.js";
@@ -123,5 +123,16 @@ courseRouter.get(
     authMiddleware,
     authorizeRoles("coordinator", "user"),
     getChapterController
+);
+courseRouter.get(
+  "/progress/:courseId",
+  authMiddleware,
+  getCourseProgressController
+);
+
+courseRouter.patch(
+  "/:courseId/chapters/:chapterId/progress",
+  authMiddleware,
+  updateChapterProgressController
 );
 export default courseRouter;
