@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
-import { gmailId,gmailPass } from "../config/env.config.js";
+import { Resend } from "resend";
+const resend = new Resend(process.env.RESEND_API_KEY);
 // Create a transporter using SMTP
 export const sendmail = async (
   subject: string,
@@ -8,38 +9,36 @@ export const sendmail = async (
   isHtml: boolean = false
 ) => {
   try {
-    if (!gmailId || !gmailPass) {
-      throw new Error("Gmail credentials are missing");
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not configured");
     }
 
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: gmailId,
-        pass: gmailPass,
-      },
-    });
+    const emailData = isHtml
+      ? {
+          from: "Gurucool <onboarding@resend.dev>",
+          to: [recipient],
+          subject,
+          html: message,
+        }
+      : {
+          from: "Gurucool <onboarding@resend.dev>",
+          to: [recipient],
+          subject,
+          text: message,
+        };
 
-    // Verify SMTP connection/authentication
-    await transporter.verify();
+    const { data, error } = await resend.emails.send(emailData);
 
-    console.log("SMTP connection successful");
+    if (error) {
+      console.error("Resend email error:", error);
+      throw new Error(error.message);
+    }
 
-    const info = await transporter.sendMail({
-      from: `"Gurucool Team" <${gmailId}>`,
-      to: recipient,
-      subject,
-      text: isHtml ? undefined : message,
-      html: isHtml ? message : `<p>${message}</p>`,
-    });
+    console.log("Email sent successfully:", data?.id);
 
-    console.log("Message sent:", info.messageId);
-
-    return info;
+    return data;
   } catch (error) {
-    console.error("EMAIL ERROR:", error);
+    console.error("SEND MAIL ERROR:", error);
     throw error;
   }
 };
