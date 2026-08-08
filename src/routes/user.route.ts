@@ -5,7 +5,8 @@ import  {createUserController,
   logoutUser, 
   getUsersController, 
   checkLoginController,
-  sendResetPasswordEmailController
+  sendResetPasswordEmailController,
+  changePasswordController
 }  from "../controller/user.controller.js";
 
 import {
@@ -144,4 +145,8 @@ userRouter.post(
   createRateLimiter(5, 15, "Too many password reset requests."),
   asyncHandler(sendResetPasswordEmailController)
 )
+userRouter.post(
+  "/change-password",
+  changePasswordController
+);
 export default userRouter;

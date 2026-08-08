@@ -12,6 +12,8 @@ import { AppError } from "../errors/AppError.js";
 import { emailQueue } from "../queue/email.queue.js";
 import { organization } from "../types/organization.type.js";
 import { User } from "../types/user.type.js";
+import { userInfo } from "node:os";
+import bcrypt from "bcrypt";
 
 
 
@@ -470,5 +472,74 @@ export const forgetPasswordLink = async (email: string) => {
     message: "Password reset link has been sent to your email." // In a real application, you wouldn't return this in the response.
   };
 }
+
+
+
+export const changePassword = async (
+  token: string,
+  newpass: string
+) => {
+  if (!token) {
+    throw new AppError(
+      "Token not found",
+      404,
+      "TOKEN_NOT_FOUND"
+    );
+  }
+
+  try {
+    const decoded = jwt.verify(token, ATJWTKEY) as jwt.JwtPayload;
+
+    if (!decoded.userId) {
+      throw new AppError(
+        "Invalid token",
+        401,
+        "INVALID_TOKEN"
+      );
+    }
+
+    const user = await Usermodel.findById(decoded.userId);
+
+    if (!user) {
+      throw new AppError(
+        "Invalid token",
+        401,
+        "INVALID_TOKEN"
+      );
+    }
+
+    const hashedPassword = await hashpass(newpass);
+
+    user.password = hashedPassword;
+
+    await user.save();
+
+    return {
+      message: "Password changed successfully",
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new AppError(
+        "Token expired",
+        401,
+        "TOKEN_EXPIRED"
+      );
+    }
+
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new AppError(
+        "Invalid token",
+        401,
+        "INVALID_TOKEN"
+      );
+    }
+
+    throw error;
+  }
+};
 
 

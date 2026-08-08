@@ -1,4 +1,4 @@
-import { createUser, getUsers,checkLogin, forgetPasswordLink } from "../services/user.service.js";
+import { createUser, getUsers,checkLogin,changePassword, forgetPasswordLink } from "../services/user.service.js";
 import { userlogin, verifyUser } from "../services/user.service.js";
 import { NextFunction, type Request, type Response } from "express";
 import { generateToken, generateAccessToken } from "../utils/jwtToken.js";
@@ -187,16 +187,40 @@ const sendResetPasswordEmailController = async (req: Request, res: Response) => 
     message: result.message,
   });
 };
-// const resetPasswordController = async (req: Request, res: Response) => {
-//   const { token, newPassword } = req.body;
+export const changePasswordController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { token, newpass } = req.body;
 
-//   const result = await resetPassword(token, newPassword);
+    if (!token) {
+      throw new AppError(
+        "Token not found",
+        404,
+        "TOKEN_NOT_FOUND"
+      );
+    }
 
-//   res.status(200).json({
-//     success: true,
-//     message: result.message,
-//   });
-// };
+    if (!newpass) {
+      throw new AppError(
+        "New password is required",
+        400,
+        "PASSWORD_REQUIRED"
+      );
+    }
+
+    const result = await changePassword(token, newpass);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export {
   createUserController, userLoginController, generateAccessTokenController,
