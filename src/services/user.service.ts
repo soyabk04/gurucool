@@ -465,7 +465,7 @@ export const forgetPasswordLink = async (email: string) => {
     );
   }
 
-  const resetLink = `https://${user.organization.domain}/user/reset-password?token=${resetToken}`;
+  const resetLink = `https://${user.organization.domain}/change-password?token=${resetToken}`;
   await sendForgetPasswordEmail( user, resetLink );
   console.log(`Password reset link sent to ${user.email}: ${resetLink}`);
   return {
