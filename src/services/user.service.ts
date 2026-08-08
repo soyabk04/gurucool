@@ -543,3 +543,58 @@ export const changePassword = async (
 };
 
 
+
+
+export const changePasswordService = async (
+  userInfo:{userId:string,role:string},
+  currentPassword:string,
+  newPassword:string,
+) => {
+  if (!currentPassword || !newPassword) {
+    throw new AppError(
+      "Current password and new password are required",
+      400,
+      "PASSWORD_REQUIRED"
+    );
+  }
+
+  if (currentPassword === newPassword) {
+    throw new AppError(
+      "New password must be different from current password",
+      400,
+      "SAME_PASSWORD"
+    );
+  }
+  
+  const user = await Usermodel.findById(userInfo.userId);
+
+  if (!user) {
+    throw new AppError(
+      "User not found",
+      404,
+      "USER_NOT_FOUND"
+    );
+  }
+
+  const isPasswordValid = await bcrypt.compare(
+    currentPassword,
+    user.password
+  );
+
+  if (!isPasswordValid) {
+    throw new AppError(
+      "Current password is incorrect",
+      401,
+      "INVALID_CURRENT_PASSWORD"
+    );
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+
+  await user.save();
+
+  return {
+    success: true,
+    message: "Password changed successfully",
+  };
+};

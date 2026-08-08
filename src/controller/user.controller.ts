@@ -1,4 +1,4 @@
-import { createUser, getUsers,checkLogin,changePassword, forgetPasswordLink } from "../services/user.service.js";
+import { createUser, getUsers,checkLogin,changePassword,changePasswordService, forgetPasswordLink } from "../services/user.service.js";
 import { userlogin, verifyUser } from "../services/user.service.js";
 import { NextFunction, type Request, type Response } from "express";
 import { generateToken, generateAccessToken } from "../utils/jwtToken.js";
@@ -187,7 +187,7 @@ const sendResetPasswordEmailController = async (req: Request, res: Response) => 
     message: result.message,
   });
 };
-export const changePasswordController = async (
+export const changePasswordWithPasswordController = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -220,6 +220,30 @@ export const changePasswordController = async (
   } catch (error) {
     next(error);
   }
+};
+export const changePasswordController = async (
+  req: Request,
+  res: Response
+) => {
+  const user = req.user;
+
+  if (!user) {
+    throw new AppError(
+      "User not found",
+      401,
+      "UNAUTHORIZED"
+    );
+  }
+
+  const { currentPassword, newPassword } = req.body;
+
+  const result = await changePasswordService(
+    user,
+    currentPassword,
+    newPassword,
+  );
+
+  res.status(200).json(result);
 };
 
 export {

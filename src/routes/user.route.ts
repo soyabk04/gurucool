@@ -149,4 +149,10 @@ userRouter.post(
   "/change-password",
   changePasswordController
 );
+
+userRouter.patch(
+  "/change-mypassword",
+  authMiddleware,
+  asyncHandler(changePasswordController)
+);
 export default userRouter;
