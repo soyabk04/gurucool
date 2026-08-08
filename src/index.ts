@@ -27,7 +27,9 @@ app.use(
         }
 
         const hostname = new URL(origin).hostname.toLowerCase();
-                const allowedOrigins = (await getDomains()).data.map((d) =>
+                const domains=await getDomains()
+                domains.data.push("soyab-dev.in")
+                const allowedOrigins = (domains).data.map((d) =>
           d.toLowerCase().trim()
        );;
             
