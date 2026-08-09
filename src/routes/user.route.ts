@@ -64,7 +64,7 @@ userRouter.post(
 
 userRouter.post(
   "/login",
-  createRateLimiter(5, 15, "Too many login attempts. Please try again later."),
+  // createRateLimiter(5, 15, "Too many login attempts. Please try again later."),
   notLoggedIn,
   userSigninValidator,
   asyncHandler(userLoginController)

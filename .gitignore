@@ -1,3 +1,5 @@
 node_modules/
 dist/
 .env
+github-actions
+github-actions.pub
