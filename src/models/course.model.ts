@@ -1,4 +1,4 @@
-import mongoose, { Model } from "mongoose";
+import mongoose, { Model, Types } from "mongoose";
 import type {
     Course,
     Chapter,
@@ -7,6 +7,9 @@ import type {
     Question,
     CourseProgress,
 } from "../types/courses.type.js";
+import { string } from "zod";
+import { required } from "zod/mini";
+import { types } from "node:util";
 
 const { Schema, model, models } = mongoose;
 
@@ -389,12 +392,47 @@ courseProgressSchema.index(
     }
 );
 
+const chapterAccessDateSchema = new Schema({
+    enrollmentId: {
+        type: Types.ObjectId,
+        ref: 'Enrollment',
+        required: true,
+        index: true
+    },
+
+    chapterId: {
+        type: Types.ObjectId,
+        ref: 'Chapter',
+        required: true,
+        index: true
+    },
+
+    accessDate: {
+        type: Date,
+        required: true
+    },
+    lastDate:{
+        type:Date,
+        required:true,
+    }
+}, {
+    timestamps: true
+});
+
+chapterAccessDateSchema.index(
+    { enrollmentId: 1, chapterId: 1 },
+    { unique: true }
+);
+
+
 
 //Models
 
 
 export const CourseModel =
     models.Course || model<Course>("Course", courseSchema);
+export const chapterAccessDateModel=
+    models.chapterAccessDate || model("chapterAccessDate", chapterAccessDateSchema);
 
 export const OrganizationCourse =
     models.OrganizationCourse || model("OrgEnroll", OrganizationCourseSchema);

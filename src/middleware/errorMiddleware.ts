@@ -2,7 +2,7 @@ import type{ Request, Response, NextFunction } from "express";
 import { AppError } from "../errors/AppError.js";
 
 export const errorMiddleware = (
-    err: any,
+    err: Error,
     req: Request,
     res: Response,
     next: NextFunction

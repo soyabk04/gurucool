@@ -1,16 +1,14 @@
-import { ATJWTKEY } from "../config/env.config.js";
 import { ChapterModel, GroupCourse, CourseModel, OrganizationCourse, QuestionModel, QuizModel, CourseProgressModel, EnrollmentModel } from "../models/course.model.js";
 import mongoose from "mongoose";
 import { Usermodel } from "../models/user.model.js";
-import type { Enrollment } from "../types/courses.type.js";
 import type { Chapter, Course, Question, Quiz } from "../types/courses.type.js";
 import { Groupmodel } from "../models/organization.model.js";
 import { R2Service } from "../utils/cloudflare.js";
 import { AppError } from "../errors/AppError.js";
-import { Types } from "mongoose"
 import { Organizationmodel } from "../models/organization.model.js";
-import { error } from "node:console";
 import { getVideoStreamUrl } from "../utils/getVideoUrl.js";
+import {chapterAccessDateModel} from '../models/course.model.js'
+
 
 
 export const createCourse = async (
@@ -916,3 +914,7 @@ export const getCourseProgressService = async (
     chapters: chaptersWithProgress,
   };
 };
+
+
+
+

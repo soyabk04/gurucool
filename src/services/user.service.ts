@@ -240,7 +240,8 @@ export const getUsers = async (
           .select("-password")
           .skip(skip)
           .limit(limit)
-          .sort({ createdAt: -1 }),
+          .sort({ createdAt: -1 })
+          .populate('groupId'),
         Usermodel.countDocuments(filter),
       ]);
 
@@ -260,7 +261,8 @@ export const getUsers = async (
         .select("-password")
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .populate('groupId'),
       Usermodel.countDocuments(),
     ]);
 
@@ -305,7 +307,8 @@ export const getUsers = async (
         .select("-password")
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .populate('groupId'),
       Usermodel.countDocuments(filter),
     ]);
 
@@ -337,7 +340,9 @@ export const getUsers = async (
         .select("-password")
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .populate('groupId'),
+
       Usermodel.countDocuments(filter),
     ]);
 

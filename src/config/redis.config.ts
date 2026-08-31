@@ -1,36 +1,37 @@
 import { Redis } from "ioredis";
-import { redisUrl } from "./env.config.js";
+import { redisHost } from "./env.config.js";
 
 let attempts = 0;
 
-export const connection = new Redis(redisUrl, {
+export const connection = new Redis(redisHost, {
   maxRetriesPerRequest: null,
 
   retryStrategy() {
     attempts++;
 
     if (attempts > 5) {
-      console.error("Too many retries. Exiting...");
+      console.error("Too many Redis retries. Exiting...");
       return null;
     }
 
-    return 2000; // Retry every 2 seconds
+    console.log(`Redis retry ${attempts}/5...`);
+
+    return 2000;
   },
 });
 
-connection.on("error", (err: any) => {
-  if (err.message.includes("WRONGPASS")) {
-    console.error("Invalid Redis credentials");
-    process.exit(1);
-  }
-});
-
 connection.on("ready", () => {
+  attempts = 0;
   console.log("🚀 Redis ready");
 });
 
-connection.on("error", (err) => {
-  console.error("❌ Redis error:", err);
+connection.on("error", (err: any) => {
+  if (err.message?.includes("WRONGPASS")) {
+    console.error("Invalid Redis credentials");
+    process.exit(1);
+  }
+
+  console.error("❌ Redis error:", err.message);
 });
 
 connection.on("close", () => {

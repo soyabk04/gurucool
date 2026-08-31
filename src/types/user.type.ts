@@ -20,9 +20,9 @@ export interface Otp {
     attempts?: number;
 }
 
-export interface RolesRequest extends Request {
-    user?: {
-        userId: string;
-        role: "user" | "superadmin" | "admin" | "coordinator";
-    };
-}
+// export interface RolesRequest extends Request {
+//     user?: {
+//         userId: string;
+//         role: "user" | "superadmin" | "admin" | "coordinator";
+//     };
+// }

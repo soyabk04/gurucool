@@ -46,7 +46,7 @@ app.use(
     credentials: true,
   })
 );
-
+console.log("🔥🔥🔥 THIS BACKEND IS RUNNING 🔥🔥🔥");
 app.use(cookieParser());
 app.use(express.json()); // Middleware to parse JSON bodies
 app.use("/api/auth", userRouter); // Import and use user routes
@@ -59,7 +59,7 @@ app.use('/api/analytics', analyticsRouter);
 
 app.use(errorMiddleware)
 
-app.listen(port, async () => {
-    console.log(`Server is running on port ${port}`);
+app.listen(5000, async () => {
+    console.log(`Server is running on port 5000`);
     
 });
