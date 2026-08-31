@@ -59,7 +59,7 @@ app.use('/api/analytics', analyticsRouter);
 
 app.use(errorMiddleware)
 
-app.listen(5000, async () => {
-    console.log(`Server is running on port 5000`);
+app.listen(port, async () => {
+    console.log(`Server is running on port port`);
     
 });
