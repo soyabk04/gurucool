@@ -1,4 +1,12 @@
-import { createChapter, assignCourseToUsers, getMyCourses, updateChapterProgressService,getCourseProgressService,getChapter, getOrganizationCourses, getassignCourseToOrganization, createCourse, getCourse, createQuestion, createQuiz, assignCourseToGroup, assignCourseToOrganization, getCourses, getassignCourseToGroup } from "../services/course.service.js";
+import { AppError } from "../errors/AppError.js";
+import { createChapter, assignCourseToUsers, getMyCourses,getQuizQuestions,
+     updateChapterProgressService,
+     getCourseProgressService,getChapter,
+      getOrganizationCourses, getassignCourseToOrganization,
+       createCourse, getCourse, createQuestion, createQuiz,
+        assignCourseToGroup, assignCourseToOrganization,
+        questionCheck,
+         getCourses, getassignCourseToGroup } from "../services/course.service.js";
 import { type Request, type Response, type NextFunction } from "express";
 
 
@@ -18,22 +26,47 @@ export const createCourseController = async (req: Request, res: Response, next: 
         next(error)
     }
 };
-export const getCourseController = async (req: Request, res: Response, next: NextFunction) => {
+export const getCourseController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
     try {
-        const courseId = req.params.courseId!;
-        if (typeof courseId !== "string") {
-            return res.status(400).json({ message: "Invalid email" });
-        };
-        const response = await getCourse(courseId)
-        res.send({
-            success: true,
-            course: response
-        })
+        const courseId = req.params.courseId;
 
-    } catch (error: any) {
-        next(error)
+        if (typeof courseId !== "string") {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid course id",
+            });
+        }
+
+        const userInfo = req.user;
+
+        if (!userInfo) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+        }
+
+        const response = await getCourse(
+            courseId,
+            {
+                userId: userInfo.userId,
+                role: userInfo.role,
+            }
+        );
+
+        return res.status(200).json({
+            success: true,
+            course: response.course,
+            chapters: response.chapters,
+        });
+    } catch (error) {
+        next(error);
     }
-}
+};
 export const getMyCoursesController = async (
     req: Request,
     res: Response
@@ -47,8 +80,9 @@ export const getMyCoursesController = async (
 export const createChapterController = async (req: Request, res: Response) => {
 
     const chapterData = req.body.chapter;
+    const quizData = req.body.chapter.quizData;
     const file = req.file!;
-    const chapter = await createChapter(chapterData, file);
+    const chapter = await createChapter(chapterData, quizData, file);
     res.status(201).json(chapter);
 
 };
@@ -61,6 +95,21 @@ export const createQuizController = async (req: Request, res: Response) => {
     } catch (error: any) {
         res.status(400).json({ message: error.message });
     }
+};
+export const quizSubmitController = async (req: Request, res: Response) => {
+    const userAnswers = req.body.userAnswers;
+    const userInfo = req.user!;
+    const result = await questionCheck(userAnswers, userInfo);
+    res.status(200).json(result);
+}
+export const getQuestionsController = async (req: Request, res: Response) => {
+
+        const chapterId = req.params.chapterId!;
+        if (typeof chapterId !== "string") {
+            throw new AppError("Invalid chapterId", 400,'INVALID_CHAPTER_ID');
+        }
+        const question = await getQuizQuestions(chapterId);
+        res.status(200).json(question);
 };
 export const createQuestionController = async (req: Request, res: Response) => {
     try {

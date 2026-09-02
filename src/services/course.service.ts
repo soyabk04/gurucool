@@ -1,4 +1,4 @@
-import { ChapterModel, GroupCourse, CourseModel, OrganizationCourse, QuestionModel, QuizModel, CourseProgressModel, EnrollmentModel } from "../models/course.model.js";
+import { ChapterModel, GroupCourse, CourseModel, OrganizationCourse, QuestionModel, QuizModel, CourseProgressModel, EnrollmentModel, QuizScoreModel, ChapterAccessDateModel } from "../models/course.model.js";
 import mongoose from "mongoose";
 import { Usermodel } from "../models/user.model.js";
 import type { Chapter, Course, Question, Quiz } from "../types/courses.type.js";
@@ -7,6 +7,7 @@ import { R2Service } from "../utils/cloudflare.js";
 import { AppError } from "../errors/AppError.js";
 import { Organizationmodel } from "../models/organization.model.js";
 import { getVideoStreamUrl } from "../utils/getVideoUrl.js";
+
 import {chapterAccessDateModel} from '../models/course.model.js'
 
 
@@ -61,8 +62,10 @@ export const createCourse = async (
 
 export const createChapter = async (
     chapterData: Chapter,
+    quizData?: any,
     file?: Express.Multer.File
 ) => {
+    // 1. Check course
     const courseExists = await CourseModel.exists({
         _id: chapterData.courseId,
     });
@@ -74,9 +77,22 @@ export const createChapter = async (
             "COURSE_NOT_FOUND"
         );
     }
-    const chapters = await ChapterModel.find({ courseId: chapterData.courseId })
-    chapterData.serialNo = chapters.length + 1;
-    const chapter = await ChapterModel.create(chapterData);
+
+    // 2. Get last serial number
+    const lastChapter = await ChapterModel
+        .findOne({
+            courseId: chapterData.courseId,
+        })
+        .sort({ serialNo: -1 })
+        .select("serialNo");
+
+    chapterData.serialNo =
+        (lastChapter?.serialNo ?? 0) + 1;
+
+    // 3. Create chapter
+    const chapter = await ChapterModel.create(
+        chapterData
+    );
 
     if (!chapter) {
         throw new AppError(
@@ -86,10 +102,14 @@ export const createChapter = async (
         );
     }
 
+    // 4. Upload video/PDF if provided
     if (file) {
         const key = `Courses/${chapter.courseId}/${chapter._id}/video`;
 
-        const uploaded = await R2Service.upload(file, key);
+        const uploaded = await R2Service.upload(
+            file,
+            key
+        );
 
         if (!uploaded) {
             throw new AppError(
@@ -100,13 +120,91 @@ export const createChapter = async (
         }
 
         chapter.videoUrl = key;
+
         await chapter.save();
+    }
+
+    // 5. Create quiz if provided
+    if (quizData) {
+        const quiz = await QuizModel.create({
+            chapterId: chapter._id,
+            passingMarks: quizData.passingMarks,
+            totalMarks: quizData.totalMarks,
+        });
+
+        // 6. Create questions
+        const questionData = quizData.questions.map(
+            (question: any) => ({
+                quizId: quiz._id,
+
+                question: question.question,
+
+                options: question.options,
+
+                answer: question.answer,
+
+                marks: question.marks,
+            })
+        );
+
+        if (questionData.length > 0) {
+            await QuestionModel.insertMany(
+                questionData
+            );
+        }
     }
 
     return chapter;
 };
+export const getQuizQuestions = async (chapterId: string) => {
+    const quiz = await QuizModel.findOne({ chapterId });
 
-export const getCourse = async (courseId: string) => {
+    if (!quiz) {
+        throw new AppError("Quiz not found", 404, "QUIZ_NOT_FOUND");
+    }
+    const questions = await QuestionModel.find({ quizId: quiz._id }).select("-quizId -__v -createdAt -updatedAt -answer");
+    if (!questions || questions.length === 0) {
+        throw new AppError("No questions found for this quiz", 404, "QUESTIONS_NOT_FOUND");
+    }
+    return questions;
+};
+export const questionCheck = async (
+    userAnswers: { questionId: string; answer: string }[],
+    userInfo: { userId: string ,role: string}) => {
+        let obtianedMarks = 0;
+        let totalMarks = 0;
+        let passingMarks = 0;
+        let quizId: string | null = null;
+        for (const userAnswer of userAnswers) {
+            const question = await QuestionModel.findById(userAnswer.questionId);
+            if (!question) {
+                throw new AppError("Question not found", 404, "QUESTION_NOT_FOUND");
+            }
+            quizId = question.quizId.toString();
+            const quiz = await QuizModel.findById(quizId);
+            passingMarks = quiz?.passingMarks ?? 0;
+            if(userAnswer.answer === question.answer) {
+                obtianedMarks += question.marks;
+            }
+            totalMarks += question.marks;
+        }
+        const passed = obtianedMarks >= passingMarks;
+        const userScore = await QuizScoreModel.create({ userId: userInfo.userId, quizId,score: obtianedMarks, passed });
+        return { score: obtianedMarks, totalMarks, passed };
+
+}
+export const getCourse = async (
+    courseId: string,
+    userInfo: {
+        userId: string;
+        role: string;
+    }
+) => {
+    /*
+     * --------------------------------------------------
+     * Validate course ID
+     * --------------------------------------------------
+     */
 
     if (!mongoose.Types.ObjectId.isValid(courseId)) {
         throw new AppError(
@@ -115,25 +213,254 @@ export const getCourse = async (courseId: string) => {
             "INVALID_COURSE_ID"
         );
     }
-    const course = await CourseModel.findById(courseId);
+
+    /*
+     * --------------------------------------------------
+     * Find course
+     * --------------------------------------------------
+     */
+
+    const course = await CourseModel.findById(
+        courseId
+    );
+
     if (!course) {
         throw new AppError(
-            "course not found",
+            "Course not found",
             404,
             "COURSE_NOT_FOUND"
         );
     }
 
-    const chapters = await ChapterModel.find({
-        courseId: courseId
-    }).select("-courseId")
-        .select("-videoUrl");
+    /*
+     * --------------------------------------------------
+     * Get chapters
+     * --------------------------------------------------
+     */
+
+    const chapters =
+        await ChapterModel.find({
+            courseId,
+        })
+            .select("-courseId")
+            .select("-videoUrl")
+            .sort({ serialNo: 1 })
+            .lean();
+
+    /*
+     * --------------------------------------------------
+     * Coordinator
+     * --------------------------------------------------
+     *
+     * Coordinator doesn't have an Enrollment.
+     * Therefore there is no ChapterAccessDate
+     * to attach.
+     * --------------------------------------------------
+     */
+
+    if (
+        userInfo.role === "coordinator"
+    ) {
+        return {
+            success: true,
+            course,
+            chapters: chapters.map(
+                (chapter) => ({
+                    ...chapter,
+                    access: null,
+                })
+            ),
+        };
+    }
+
+    /*
+     * --------------------------------------------------
+     * User enrollment
+     * --------------------------------------------------
+     */
+
+    if (userInfo.role !== "user") {
+        throw new AppError(
+            "Forbidden",
+            403,
+            "FORBIDDEN"
+        );
+    }
+
+    const enrollment =
+        await EnrollmentModel.findOne({
+            userId: userInfo.userId,
+            courseId,
+            status: "active",
+        }).lean();
+
+    if (!enrollment) {
+        throw new AppError(
+            "You are not enrolled in this course.",
+            403,
+            "NOT_ENROLLED"
+        );
+    }
+
+    /*
+     * --------------------------------------------------
+     * Get access dates
+     * --------------------------------------------------
+     */
+
+    const accessDates =
+        await ChapterAccessDateModel.find({
+            enrollmentId: enrollment._id,
+        }).lean();
+
+    /*
+     * --------------------------------------------------
+     * Create lookup map
+     * --------------------------------------------------
+     */
+
+    const accessMap = new Map(
+        accessDates.map((item) => [
+            item.chapterId.toString(),
+            item,
+        ])
+    );
+
+    /*
+     * --------------------------------------------------
+     * Get progress
+     * --------------------------------------------------
+     */
+
+    const progress =
+        await CourseProgressModel.find({
+            userId: userInfo.userId,
+            courseId,
+        }).lean();
+
+    const progressMap = new Map(
+        progress.map((item) => [
+            item.chapterId.toString(),
+            item,
+        ])
+    );
+
+    /*
+     * --------------------------------------------------
+     * Current time
+     * --------------------------------------------------
+     */
+
+    const now = new Date();
+
+    /*
+     * --------------------------------------------------
+     * Attach access + progress to chapters
+     * --------------------------------------------------
+     */
+
+    const chaptersWithAccess =
+        chapters.map(
+            (chapter, index) => {
+                const access =
+                    accessMap.get(
+                        chapter._id.toString()
+                    );
+
+                const chapterProgress =
+                    progressMap.get(
+                        chapter._id.toString()
+                    );
+
+                let status:
+                    | "available"
+                    | "upcoming"
+                    | "expired"
+                    | "locked"
+                    | "not_configured" =
+                    "not_configured";
+
+                /*
+                 * --------------------------------------------------
+                 * Check date
+                 * --------------------------------------------------
+                 */
+
+                if (access) {
+                    if (
+                        now <
+                        new Date(
+                            access.accessDate
+                        )
+                    ) {
+                        status = "upcoming";
+                    } else if (
+                        now >
+                        new Date(
+                            access.lastDate
+                        )
+                    ) {
+                        status = "expired";
+                    } else {
+                        status = "available";
+                    }
+                }
+
+                /*
+                 * --------------------------------------------------
+                 * Check previous chapter
+                 * --------------------------------------------------
+                 */
+
+                if (index > 0) {
+                    const previousChapter =
+                        chapters[index - 1];
+
+                    const previousProgress =
+                        progressMap.get(
+                            previousChapter._id.toString()
+                        );
+
+                    if (
+                        !previousProgress?.completed
+                    ) {
+                        status = "locked";
+                    }
+                }
+
+                return {
+                    ...chapter,
+
+                    completed:
+                        chapterProgress?.completed ??
+                        false,
+
+                    watchedDuration:
+                        chapterProgress?.watchedDuration ??
+                        0,
+
+                    access: access
+                        ? {
+                              accessDate:
+                                  access.accessDate,
+
+                              lastDate:
+                                  access.lastDate,
+
+                              status,
+                          }
+                        : null,
+                };
+            }
+        );
+
     return {
         success: true,
         course,
-        chapters
-    }
-}
+        chapters:
+            chaptersWithAccess,
+    };
+};
 export const getMyCourses = async (userInfo: { userId: string; role: string }) => {
 
     const myCourses = await EnrollmentModel.find({
@@ -191,164 +518,478 @@ export const createQuiz = async (
 
     return await QuizModel.create(quizData);
 };
-interface AssignCourseDto {
+export interface AssignCourseDto {
     courseId: string;
     userIds: string[];
+
+    chapters: {
+        chapterId: string;
+        accessDate: Date;
+        lastDate: Date;
+    }[];
 }
+
 export const assignCourseToUsers = async (
     data: AssignCourseDto,
     actor: { userId: string; role: string }
 ) => {
-    const coordinatorId = actor.userId;
-    const actorUser = await Usermodel.findById(actor.userId).select(
-        "organization groupId role"
-    );
+    const session = await mongoose.startSession();
 
-    if (!actorUser) {
-        throw new AppError("User not found", 404, "USER_NOT_FOUND");
-    }
+    try {
+        session.startTransaction();
 
-    const course = await CourseModel.findById(data.courseId);
+        const actorId = actor.userId;
 
-    if (!course) {
-        throw new AppError("Course not found.", 404, "COURSE_NOT_FOUND");
-    }
+        // =========================================================
+        // 1. Get actor
+        // =========================================================
 
-    const users = await Usermodel.find({
-        _id: { $in: data.userIds },
-    });
+        const actorUser = await Usermodel.findById(actorId)
+            .select("organization groupId role")
+            .session(session);
 
-    if (users.length !== data.userIds.length) {
-        throw new AppError(
-            "Some users do not exist.",
-            400,
-            "USERS_NOT_FOUND"
-        );
-    }
-
-    for (const user of users) {
-        if (actor.role === "admin") {
-            if (
-                !actorUser.organization ||
-                user.organization?.toString() !==
-                actorUser.organization.toString()
-            ) {
-                throw new AppError(
-                    "Cannot enroll users outside your organization.",
-                    403,
-                    "FORBIDDEN"
-                );
-            }
-        } else if (actor.role === "coordinator") {
-            if (
-                !actorUser.groupId ||
-                user.groupId?.toString() !== actorUser.groupId.toString()
-            ) {
-                throw new AppError(
-                    "Cannot enroll users outside your group.",
-                    403,
-                    "FORBIDDEN"
-                );
-            }
+        if (!actorUser) {
+            throw new AppError(
+                "User not found",
+                404,
+                "USER_NOT_FOUND"
+            );
         }
 
-        if (!user.organization || !user.groupId) {
+        // =========================================================
+        // 2. Validate course
+        // =========================================================
+
+        const course = await CourseModel.findById(data.courseId)
+            .session(session);
+
+        if (!course) {
             throw new AppError(
-                "User must belong to an organization and group before enrollment.",
+                "Course not found.",
+                404,
+                "COURSE_NOT_FOUND"
+            );
+        }
+
+        // =========================================================
+        // 3. Validate user IDs
+        // =========================================================
+
+        const uniqueUserIds = [
+            ...new Set(
+                data.userIds.map((id) => id.toString())
+            ),
+        ];
+
+        if (uniqueUserIds.length === 0) {
+            throw new AppError(
+                "No users selected.",
                 400,
-                "USER_NOT_ASSIGNABLE"
+                "NO_USERS_SELECTED"
             );
         }
-    }
 
-    if (actor.role === "admin" && actorUser.organization) {
-        const orgAssignment = await OrganizationCourse.findOne({
-            organizationId: actorUser.organization,
-            courseId: data.courseId,
-            status: "active",
-        });
-        if (!orgAssignment) {
+        // =========================================================
+        // 4. Validate chapter schedules
+        // =========================================================
+
+        if (
+            !data.chapters ||
+            data.chapters.length === 0
+        ) {
             throw new AppError(
-                "This course is not assigned to your organization.",
-                403,
-                "COURSE_NOT_ASSIGNED"
+                "Chapter access dates are required.",
+                400,
+                "CHAPTER_SCHEDULE_REQUIRED"
             );
         }
-    }
 
-    if (actor.role === "coordinator" && actorUser.groupId) {
-        const groupAssignment = await GroupCourse.findOne({
-            groupId: actorUser.groupId,
+        // =========================================================
+        // 5. Get course chapters
+        // =========================================================
+
+        const chapters = await ChapterModel.find({
             courseId: data.courseId,
-            status: "active",
-        });
-        if (!groupAssignment) {
+        })
+            .sort({ order: 1 })
+            .session(session);
+
+        if (chapters.length === 0) {
             throw new AppError(
-                "This course is not assigned to your group.",
-                403,
-                "COURSE_NOT_ASSIGNED"
+                "This course does not have any chapters.",
+                400,
+                "NO_CHAPTERS"
             );
         }
-    }
 
-    const chapters = await ChapterModel.find({
-        courseId: data.courseId,
-    });
+        // =========================================================
+        // 6. Validate that all course chapters have schedules
+        // =========================================================
 
-    const existingEnrollments = await EnrollmentModel.find({
-        courseId: data.courseId,
-        userId: { $in: data.userIds },
-    });
-
-    const enrolledIds = new Set(
-        existingEnrollments.map((e) => e.userId.toString())
-    );
-
-    const enrollments = users
-        .filter((user) => !enrolledIds.has(user._id.toString()))
-        .map((user) => ({
-            userId: user._id,
-            courseId: data.courseId,
-            organizationId: user.organization,
-            groupId: user.groupId,
-            enrolledBy: coordinatorId,
-            status: "active",
-            progress: 0,
-        }));
-
-    if (enrollments.length === 0) {
-        throw new AppError(
-            "All selected users are already enrolled.",
-            400,
-            "ALREADY_ENROLLED"
+        const courseChapterIds = new Set(
+            chapters.map((chapter) =>
+                chapter._id.toString()
+            )
         );
-    }
 
-    await EnrollmentModel.insertMany(enrollments);
+        const scheduledChapterIds = new Set<string>();
 
-    const progressDocs = [];
+        for (const schedule of data.chapters) {
+            const chapterId =
+                schedule.chapterId.toString();
 
-    for (const enrollment of enrollments) {
-        for (const chapter of chapters) {
-            progressDocs.push({
-                userId: enrollment.userId,
-                courseId: enrollment.courseId,
-                chapterId: chapter._id,
-                watchedDuration: 0,
-                completed: false,
-            });
+            // Check duplicate chapter schedule
+            if (scheduledChapterIds.has(chapterId)) {
+                throw new AppError(
+                    `Duplicate schedule for chapter ${chapterId}.`,
+                    400,
+                    "DUPLICATE_CHAPTER_SCHEDULE"
+                );
+            }
+
+            scheduledChapterIds.add(chapterId);
+
+            // Check chapter belongs to course
+            if (!courseChapterIds.has(chapterId)) {
+                throw new AppError(
+                    `Chapter ${chapterId} does not belong to this course.`,
+                    400,
+                    "INVALID_CHAPTER"
+                );
+            }
+
+            // Parse dates
+            const accessDate = new Date(
+                schedule.accessDate
+            );
+
+            const lastDate = new Date(
+                schedule.lastDate
+            );
+
+            // Validate dates
+            if (
+                Number.isNaN(accessDate.getTime()) ||
+                Number.isNaN(lastDate.getTime())
+            ) {
+                throw new AppError(
+                    `Invalid dates for chapter ${chapterId}.`,
+                    400,
+                    "INVALID_ACCESS_DATE"
+                );
+            }
+
+            // Last date must be after access date
+            if (accessDate >= lastDate) {
+                throw new AppError(
+                    `Last date must be after access date for chapter ${chapterId}.`,
+                    400,
+                    "INVALID_ACCESS_RANGE"
+                );
+            }
         }
+
+        // Make sure every chapter has a schedule
+        if (
+            scheduledChapterIds.size !==
+            courseChapterIds.size
+        ) {
+            throw new AppError(
+                "Access dates must be provided for every chapter.",
+                400,
+                "MISSING_CHAPTER_SCHEDULE"
+            );
+        }
+
+        // =========================================================
+        // 7. Get users
+        // =========================================================
+
+        const users = await Usermodel.find({
+            _id: { $in: uniqueUserIds },
+        })
+            .session(session);
+
+        if (
+            users.length !== uniqueUserIds.length
+        ) {
+            throw new AppError(
+                "Some users do not exist.",
+                400,
+                "USERS_NOT_FOUND"
+            );
+        }
+
+        // =========================================================
+        // 8. Validate user permissions
+        // =========================================================
+
+        for (const user of users) {
+            // -----------------------------------------------------
+            // Admin
+            // -----------------------------------------------------
+
+            if (actor.role === "admin") {
+                if (
+                    !actorUser.organization ||
+                    !user.organization ||
+                    user.organization.toString() !==
+                        actorUser.organization.toString()
+                ) {
+                    throw new AppError(
+                        "Cannot enroll users outside your organization.",
+                        403,
+                        "FORBIDDEN"
+                    );
+                }
+            }
+
+            // -----------------------------------------------------
+            // Coordinator
+            // -----------------------------------------------------
+
+            else if (
+                actor.role === "coordinator"
+            ) {
+                if (
+                    !actorUser.groupId ||
+                    !user.groupId ||
+                    user.groupId.toString() !==
+                        actorUser.groupId.toString()
+                ) {
+                    throw new AppError(
+                        "Cannot enroll users outside your group.",
+                        403,
+                        "FORBIDDEN"
+                    );
+                }
+            }
+
+            // -----------------------------------------------------
+            // User must have organization and group
+            // -----------------------------------------------------
+
+            if (
+                !user.organization ||
+                !user.groupId
+            ) {
+                throw new AppError(
+                    "User must belong to an organization and group before enrollment.",
+                    400,
+                    "USER_NOT_ASSIGNABLE"
+                );
+            }
+        }
+
+        // =========================================================
+        // 9. Validate course assignment
+        // =========================================================
+
+        if (actor.role === "admin") {
+            if (!actorUser.organization) {
+                throw new AppError(
+                    "Admin is not assigned to an organization.",
+                    403,
+                    "FORBIDDEN"
+                );
+            }
+
+            const orgAssignment =
+                await OrganizationCourse.findOne({
+                    organizationId:
+                        actorUser.organization,
+                    courseId: data.courseId,
+                    status: "active",
+                }).session(session);
+
+            if (!orgAssignment) {
+                throw new AppError(
+                    "This course is not assigned to your organization.",
+                    403,
+                    "COURSE_NOT_ASSIGNED"
+                );
+            }
+        }
+
+        else if (
+            actor.role === "coordinator"
+        ) {
+            if (!actorUser.groupId) {
+                throw new AppError(
+                    "Coordinator is not assigned to a group.",
+                    403,
+                    "FORBIDDEN"
+                );
+            }
+
+            const groupAssignment =
+                await GroupCourse.findOne({
+                    groupId: actorUser.groupId,
+                    courseId: data.courseId,
+                    status: "active",
+                }).session(session);
+
+            if (!groupAssignment) {
+                throw new AppError(
+                    "This course is not assigned to your group.",
+                    403,
+                    "COURSE_NOT_ASSIGNED"
+                );
+            }
+        }
+
+        // =========================================================
+        // 10. Find existing enrollments
+        // =========================================================
+
+        const existingEnrollments =
+            await EnrollmentModel.find({
+                courseId: data.courseId,
+                userId: { $in: uniqueUserIds },
+            })
+                .select("userId")
+                .session(session);
+
+        const enrolledIds = new Set(
+            existingEnrollments.map(
+                (enrollment) =>
+                    enrollment.userId.toString()
+            )
+        );
+
+        // =========================================================
+        // 11. Create new enrollment objects
+        // =========================================================
+
+        const enrollments = users
+            .filter(
+                (user) =>
+                    !enrolledIds.has(
+                        user._id.toString()
+                    )
+            )
+            .map((user) => ({
+                userId: user._id,
+                courseId: data.courseId,
+                organizationId:
+                    user.organization,
+                groupId: user.groupId,
+                enrolledBy: actorId,
+                status: "active",
+                progress: 0,
+            }));
+
+        if (enrollments.length === 0) {
+            throw new AppError(
+                "All selected users are already enrolled.",
+                400,
+                "ALREADY_ENROLLED"
+            );
+        }
+
+        // =========================================================
+        // 12. Create enrollments
+        // =========================================================
+
+        const createdEnrollments =
+            await EnrollmentModel.insertMany(
+                enrollments,
+                { session }
+            );
+
+        // =========================================================
+        // 13. Create CourseProgress documents
+        // =========================================================
+
+        const progressDocs = [];
+
+        for (
+            const enrollment of createdEnrollments
+        ) {
+            for (const chapter of chapters) {
+                progressDocs.push({
+                    userId: enrollment.userId,
+                    courseId:
+                        enrollment.courseId,
+                    chapterId: chapter._id,
+                    watchedDuration: 0,
+                    completed: false,
+                });
+            }
+        }
+
+        if (progressDocs.length > 0) {
+            await CourseProgressModel.insertMany(
+                progressDocs,
+                { session }
+            );
+        }
+
+        // =========================================================
+        // 14. Create ChapterAccessDate documents
+        // =========================================================
+
+        const chapterAccessDocs = [];
+
+        for (
+            const enrollment of createdEnrollments
+        ) {
+            for (const schedule of data.chapters) {
+                const accessDate = new Date(
+                    schedule.accessDate
+                );
+
+                const lastDate = new Date(
+                    schedule.lastDate
+                );
+
+                chapterAccessDocs.push({
+                    enrollmentId:
+                        enrollment._id,
+
+                    chapterId:
+                        schedule.chapterId,
+
+                    accessDate,
+
+                    lastDate,
+                });
+            }
+        }
+
+        if (
+            chapterAccessDocs.length > 0
+        ) {
+            await ChapterAccessDateModel.insertMany(
+                chapterAccessDocs,
+                { session }
+            );
+        }
+
+        // =========================================================
+        // 15. Commit transaction
+        // =========================================================
+
+        await session.commitTransaction();
+
+        return {
+            assigned: createdEnrollments.length,
+        };
+    } catch (error) {
+        // =========================================================
+        // Rollback everything if anything fails
+        // =========================================================
+
+        await session.abortTransaction();
+
+        throw error;
+    } finally {
+        // =========================================================
+        // Always close session
+        // =========================================================
+
+        await session.endSession();
     }
-
-    if (progressDocs.length > 0) {
-        await CourseProgressModel.insertMany(progressDocs);
-    }
-
-
-
-    return {
-        assigned: enrollments.length,
-    };
 };
 export const getCourses = async (userInfo: { userId: string; role: string }, organizationId?: string) => {
     if (userInfo.role === "superadmin") {
@@ -601,52 +1242,215 @@ export const getOrganizationCourses = async (
     );
     return result.filter(Boolean);
 };
-
-export const getChapter = async (chapterId: string, userInfo: { userId: string, role: string }) => {
+export const checkChapterAccess = async (
+    userId: string,
+    chapterId: string
+) => {
     if (!mongoose.Types.ObjectId.isValid(chapterId)) {
-        throw new AppError("Invalid chapter id", 400, "INVALID_CHAPTER_ID");
+        throw new AppError(
+            "Invalid chapter id",
+            400,
+            "INVALID_CHAPTER_ID"
+        );
     }
 
-    const chapter = await ChapterModel.findById(chapterId);
+    const chapter = await ChapterModel.findById(
+        chapterId
+    ).select("courseId");
+
     if (!chapter) {
-        throw new AppError("Chapter not found", 404, "CHAPTER_NOT_FOUND");
+        throw new AppError(
+            "Chapter not found.",
+            404,
+            "CHAPTER_NOT_FOUND"
+        );
     }
+
+    const enrollment =
+        await EnrollmentModel.findOne({
+            userId,
+            courseId: chapter.courseId,
+            status: "active",
+        });
+
+    if (!enrollment) {
+        throw new AppError(
+            "You are not enrolled in this course.",
+            403,
+            "NOT_ENROLLED"
+        );
+    }
+
+    const access =
+        await ChapterAccessDateModel.findOne({
+            enrollmentId: enrollment._id,
+            chapterId,
+        });
+
+    if (!access) {
+        throw new AppError(
+            "Chapter access has not been configured.",
+            403,
+            "CHAPTER_ACCESS_NOT_CONFIGURED"
+        );
+    }
+
+    const now = new Date();
+
+    if (now < access.accessDate) {
+        throw new AppError(
+            "This chapter is not available yet.",
+            403,
+            "CHAPTER_NOT_AVAILABLE"
+        );
+    }
+
+    if (now > access.lastDate) {
+        throw new AppError(
+            "Access to this chapter has expired.",
+            403,
+            "CHAPTER_ACCESS_EXPIRED"
+        );
+    }
+
+    return {
+        allowed: true,
+        enrollment,
+        access,
+    };
+};
+
+export const getChapter = async (
+    chapterId: string,
+    userInfo: {
+        userId: string;
+        role: string;
+    }
+) => {
+
+    /*
+     * --------------------------------------------------
+     * 1. Validate chapter ID
+     * --------------------------------------------------
+     */
+
+    if (!mongoose.Types.ObjectId.isValid(chapterId)) {
+        throw new AppError(
+            "Invalid chapter id",
+            400,
+            "INVALID_CHAPTER_ID"
+        );
+    }
+
+    /*
+     * --------------------------------------------------
+     * 2. Find chapter
+     * --------------------------------------------------
+     */
+
+    const chapter = await ChapterModel.findById(
+        chapterId
+    );
+
+    console.log("chapter:", chapter);
+
+    if (!chapter) {
+        throw new AppError(
+            "Chapter not found.",
+            404,
+            "CHAPTER_NOT_FOUND"
+        );
+    }
+
+    /*
+     * --------------------------------------------------
+     * 3. Check chapter access
+     * --------------------------------------------------
+     *
+     * Only normal users need chapter access-date
+     * restrictions.
+     */
+
+    if (userInfo.role === "user") {
+        await checkChapterAccess(
+            userInfo.userId,
+            chapterId
+        );
+    }
+
+    /*
+     * --------------------------------------------------
+     * 4. Check video
+     * --------------------------------------------------
+     */
 
     if (!chapter.videoUrl) {
-        throw new AppError("Video not available", 404, "VIDEO_NOT_FOUND");
+        throw new AppError(
+            "Video not available",
+            404,
+            "VIDEO_NOT_FOUND"
+        );
     }
 
-    if (userInfo.role === "coordinator") {
-        const user = await Usermodel.findById(userInfo.userId);
-        const courseEn = await GroupCourse.find({
-            courseId: chapter.courseId,
-            groupId: user?.groupId,
-            status: "active",
-        });
-        if (courseEn.length === 0) {
-            throw new AppError("Forbidden", 403, "FORBIDDEN");
+    /*
+     * --------------------------------------------------
+     * 5. Check previous chapter completion
+     * --------------------------------------------------
+     */
+
+    if (
+        userInfo.role === "user" &&
+        chapter.serialNo > 1
+    ) {
+        const previousChapter =
+            await ChapterModel.findOne({
+                courseId: chapter.courseId,
+                serialNo: chapter.serialNo - 1,
+            });
+
+        if (previousChapter) {
+            const previousProgress =
+                await CourseProgressModel.findOne({
+                    userId: userInfo.userId,
+                    courseId: chapter.courseId,
+                    chapterId: previousChapter._id,
+                });
+
+            if (!previousProgress?.completed) {
+                throw new AppError(
+                    "Complete the previous chapter first",
+                    403,
+                    "CHAPTER_LOCKED"
+                );
+            }
         }
-    } else if (userInfo.role === "user") {
-        const user = await Usermodel.findById(userInfo.userId);
-        const courseEn = await EnrollmentModel.find({
-            courseId: chapter.courseId,
-            userId: user?._id,
-            status: "active",
-        });
-        if (courseEn.length === 0) {
-            throw new AppError("Forbidden", 403, "FORBIDDEN");
-        }
-    } else {
-        throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
 
-    const url = await getVideoStreamUrl(chapter.videoUrl);
+    /*
+     * --------------------------------------------------
+     * 6. Generate video URL
+     * --------------------------------------------------
+     */
+
+
+    const url = await getVideoStreamUrl(
+        chapter.videoUrl
+    );
+
+    /*
+     * --------------------------------------------------
+     * 7. Return chapter
+     * --------------------------------------------------
+     */
+
     return {
         id: chapter._id,
         title: chapter.title,
         videoUrl: url,
+        serialNo: chapter.serialNo,
     };
 };
+
 
 interface UpdateProgressData {
     userId: string;

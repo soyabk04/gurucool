@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createChapterController,getCoursesController,updateChapterProgressController,getCourseProgressController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController } from "../controller/course.controller.js";
+import { createChapterController,getCoursesController,updateChapterProgressController,getCourseProgressController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController, getQuestionsController, quizSubmitController } from "../controller/course.controller.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { authMiddleware } from "../middleware/authentication.middleware.js";
 import { Assignmentvalidator, chapterValidator, courseValidator, questionValidator, quizValidator } from "../validator/courses.validator.js";
@@ -38,13 +38,16 @@ courseRouter.post(
     createQuizController
 );
 
-courseRouter.post(
-    "/question",
-    createRateLimiter(50, 15),
+courseRouter.get(
+    "/questions/:chapterId",
     authMiddleware,
-    authorizeRoles("superadmin", "admin"),
-    questionValidator,
-    createQuestionController
+    getQuestionsController
+);
+courseRouter.post(
+    "/quiz/submit",
+    createRateLimiter(20, 15),
+    authMiddleware,
+    quizSubmitController
 );
 
 courseRouter.post(
@@ -106,6 +109,7 @@ courseRouter.get(
 courseRouter.get(
     "/course/:courseId",
     createRateLimiter(200, 15),
+    authMiddleware,
     getCourseController
 );
 

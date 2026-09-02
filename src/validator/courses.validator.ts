@@ -17,12 +17,36 @@ const courseSchema = z.object({
   description: z.string().min(1, "too short"),
   thumbnail: z.string().optional(),
 });
+
+const quizQuestionSchema = z.object({
+  question: z.string().min(1, "Question is required"),
+
+  options: z
+    .array(z.string().min(1, "Option is required"))
+    .length(4, "Exactly 4 options are required"),
+
+  answer: z.string().min(1, "Correct answer is required"),
+
+  marks: z.number().min(1, "Marks must be at least 1"),
+});
+
+const quizDataSchema = z.object({
+  passingMarks: z.number().min(0),
+  totalMarks: z.number().min(1),
+
+  questions: z
+    .array(quizQuestionSchema)
+    .min(1, "At least one question is required"),
+});
+
+
 const chapterSchema = z.object({
   serialNo: z.number().optional(),
   courseId: z.string(),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   videoUrl: z.string().url().optional(),
+  quizData: quizDataSchema.optional(),
 });
 
 const courseAssignmentSchema = z.object({

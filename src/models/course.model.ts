@@ -288,7 +288,34 @@ quizSchema.index({
     chapterId: 1,
 });
 
+const quizScoreSchema = new Schema({
+    userId: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        index: true,
+    },
 
+    quizId: {
+        type: Schema.Types.ObjectId,
+        ref: "Quiz",
+        required: true,
+        index: true,
+    },
+
+    score: {
+        type: Number,
+        required: true,
+        min: 0,
+    },
+
+    passed: {
+        type: Boolean,
+        required: true,
+    },
+}, {
+    timestamps: true
+});
 //   Question
 
 
@@ -454,3 +481,10 @@ export const QuestionModel: Model<Question> =
 export const CourseProgressModel: Model<CourseProgress> =
     models.CourseProgress ||
     model<CourseProgress>("CourseProgress", courseProgressSchema);
+
+export const QuizScoreModel: Model<any> =
+    models.QuizScore ||
+    model<any>("QuizScore", quizScoreSchema);
+export const ChapterAccessDateModel: Model<any> =
+    models.ChapterAccessDate ||
+    model<any>("ChapterAccessDate", chapterAccessDateSchema);
