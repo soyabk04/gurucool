@@ -342,6 +342,135 @@ const createGroupService = async (
         );
     }
 };
+export const deleteGroupService = async (
+    groupId: string,
+    adminData: {
+        userId: string;
+        role: string;
+    }
+) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            throw new AppError(
+                "Invalid group ID",
+                400,
+                "INVALID_GROUP_ID"
+            );
+        }
+
+        const adminUser = await Usermodel.findById(
+            adminData.userId
+        ).select("organization");
+
+        if (!adminUser?.organization) {
+            throw new AppError(
+                "Organization not found",
+                404,
+                "ORGANIZATION_NOT_FOUND"
+            );
+        }
+
+        const group = await Groupmodel.findOne({
+            _id: groupId,
+            organization: adminUser.organization,
+        });
+
+        if (!group) {
+            throw new AppError(
+                "Group not found",
+                404,
+                "GROUP_NOT_FOUND"
+            );
+        }
+
+        // Delete users belonging to this group
+        await Usermodel.deleteMany({
+            groupId: group._id,
+        });
+
+        // Delete the group itself
+        await Groupmodel.deleteOne({
+            _id: group._id,
+        });
+
+        return {
+            success: true,
+            message:
+                "Group and associated users deleted successfully",
+        };
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+
+
+        throw new AppError(
+            "Failed to delete group",
+            500,
+            "GROUP_DELETION_FAILED"
+        );
+    }
+};
+export const getGroupService = async (
+    groupId: string,
+    adminData: { userId: string; role: string }
+) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            throw new AppError(
+                "Invalid group ID",
+                400,
+                "INVALID_GROUP_ID"
+            );
+        }
+
+        const adminUser = await Usermodel.findById(
+            adminData.userId
+        ).select("organization");
+
+        if (!adminUser?.organization) {
+            throw new AppError(
+                "Organization not found",
+                404,
+                "ORGANIZATION_NOT_FOUND"
+            );
+        }
+
+        const group = await Groupmodel.findOne({
+            _id: groupId,
+            organization: adminUser.organization,
+        }).populate(
+            "coordinator",
+            "_id name email ID"
+        );
+
+        if (!group) {
+            throw new AppError(
+                "Group not found",
+                404,
+                "GROUP_NOT_FOUND"
+            );
+        }
+
+        return {
+            success: true,
+            message: "Group fetched successfully",
+            data: group,
+        };
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+
+        console.error("Get group error:", error);
+
+        throw new AppError(
+            "Failed to get group",
+            500,
+            "GROUP_FETCH_FAILED"
+        );
+    }
+};
 interface UserWithGroupName extends User {
     groupName?: string;
     organizationName?: string;
@@ -432,6 +561,235 @@ const getOrganizationUsersService = async (userInfo: {
             "Failed to fetch organization users",
             500,
             "USER_FETCH_FAILED"
+        );
+    }
+};
+export const updateGroupService = async (
+    groupId: string,
+    grpData: Partial<group>,
+    coordinator: User[] | undefined,
+    adminData: { userId: string; role: string }
+) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(groupId)) {
+            throw new AppError(
+                "Invalid group ID",
+                400,
+                "INVALID_GROUP_ID"
+            );
+        }
+
+        const adminUser = await Usermodel.findById(adminData.userId).select(
+            "organization role"
+        );
+
+        if (!adminUser?.organization) {
+            throw new AppError(
+                "Organization not found",
+                404,
+                "ORGANIZATION_NOT_FOUND"
+            );
+        }
+
+        const organization = await Organizationmodel.findById(
+            adminUser.organization
+        );
+
+        if (!organization) {
+            throw new AppError(
+                "Organization not found",
+                404,
+                "ORGANIZATION_NOT_FOUND"
+            );
+        }
+
+        const existingGroup = await Groupmodel.findOne({
+            _id: groupId,
+            organization: organization._id,
+        });
+
+        if (!existingGroup) {
+            throw new AppError(
+                "Group not found",
+                404,
+                "GROUP_NOT_FOUND"
+            );
+        }
+
+        /*
+         * Update group fields
+         */
+
+        if (grpData.groupCode !== undefined) {
+            grpData.groupCode = grpData.groupCode.toUpperCase();
+
+            const duplicateGroup = await Groupmodel.findOne({
+                _id: { $ne: groupId },
+                organization: organization._id,
+                groupCode: grpData.groupCode,
+            });
+
+            if (duplicateGroup) {
+                throw new AppError(
+                    "A group with this group code already exists",
+                    409,
+                    "GROUP_CODE_ALREADY_EXISTS"
+                );
+            }
+        }
+
+        /*
+         * Prevent changing organization through update data
+         */
+
+        delete (grpData as any).organization;
+        delete (grpData as any).coordinator;
+
+        Object.assign(existingGroup, grpData);
+
+        /*
+         * Update coordinator if provided
+         */
+
+        let updatedCoordinator = null;
+
+        if (coordinator?.length) {
+            const coordinatorData = coordinator[0];
+
+            if (!coordinatorData.email || !coordinatorData.ID) {
+                throw new AppError(
+                    "Coordinator email and ID are required",
+                    400,
+                    "INVALID_COORDINATOR"
+                );
+            }
+
+            /*
+             * Check whether this coordinator already exists.
+             * Exclude the current coordinator of this group.
+             */
+
+            const duplicateCoordinator = await Usermodel.findOne({
+                $or: [
+                    { email: coordinatorData.email },
+                    { ID: coordinatorData.ID },
+                ],
+                _id: {
+                    $ne: existingGroup.coordinator,
+                },
+            });
+
+            if (duplicateCoordinator) {
+                throw new AppError(
+                    "Coordinator with this email or ID already exists",
+                    409,
+                    "COORDINATOR_ALREADY_EXISTS"
+                );
+            }
+
+            /*
+             * If the group already has a coordinator,
+             * update that user.
+             */
+
+            if (existingGroup.coordinator) {
+                updatedCoordinator = await Usermodel.findByIdAndUpdate(
+                    existingGroup.coordinator,
+                    {
+                        $set: {
+                            name: coordinatorData.name,
+                            email: coordinatorData.email,
+                            ID: coordinatorData.ID,
+                            organization: organization._id,
+                            groupId: existingGroup._id,
+                            role: "coordinator",
+                        },
+                    },
+                    {
+                        new: true,
+                        runValidators: true,
+                    }
+                );
+            } else {
+                /*
+                 * No coordinator currently exists,
+                 * so create one.
+                 */
+
+                const plainPassword = generatePassword();
+
+                coordinatorData.password =
+                    await hashpass(plainPassword);
+
+                coordinatorData.role = "coordinator";
+                coordinatorData.organization = organization._id;
+                coordinatorData.groupId = existingGroup._id;
+
+                updatedCoordinator = await Usermodel.create(
+                    coordinatorData
+                );
+
+                existingGroup.coordinator =
+                    updatedCoordinator._id;
+
+                /*
+                 * Don't fail group update if email queue fails.
+                 */
+
+                try {
+                    await emailQueue.add("welcome-email", {
+                        user: updatedCoordinator,
+                        password: plainPassword,
+                        organization,
+                    });
+                } catch (error) {
+                    console.error(
+                        "Failed to queue welcome email:",
+                        error
+                    );
+                }
+            }
+        }
+
+        await existingGroup.save();
+
+        /*
+         * If coordinator wasn't updated above,
+         * fetch the existing one for the response.
+         */
+
+        if (!updatedCoordinator && existingGroup.coordinator) {
+            updatedCoordinator = await Usermodel.findById(
+                existingGroup.coordinator
+            ).select("_id name email ID");
+        }
+
+        return {
+            success: true,
+            message: "Group updated successfully",
+            data: {
+                group: existingGroup,
+                coordinator: updatedCoordinator
+                    ? {
+                          _id: updatedCoordinator._id,
+                          name: updatedCoordinator.name,
+                          email: updatedCoordinator.email,
+                          ID: updatedCoordinator.ID,
+                      }
+                    : null,
+            },
+        };
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+
+        console.error("Update group error:", error);
+
+        throw new AppError(
+            "Failed to update group",
+            500,
+            "GROUP_UPDATE_FAILED"
         );
     }
 };

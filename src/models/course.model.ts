@@ -35,6 +35,11 @@ const courseSchema = new Schema<Course>(
             type: String,
             required: false,
         },
+        certTemplate:{
+            type:String,
+            required:false,
+        }
+        ,
 
         instructor: {
             type: Schema.Types.ObjectId,
@@ -209,14 +214,14 @@ const enrollmentSchema = new Schema<Enrollment>(
         organizationId: {
             type: Schema.Types.ObjectId,
             ref: "Organization",
-            required: true,
+            required: false,
             index: true
         },
 
         groupId: {
             type: Schema.Types.ObjectId,
             ref: "group",
-            required: true,
+            required: false,
             index: true
         },
 
@@ -451,7 +456,57 @@ chapterAccessDateSchema.index(
     { unique: true }
 );
 
+const CertificateSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
 
+    courseId: {
+      type: Schema.Types.ObjectId,
+      ref: "Course",
+      required: true,
+      index: true,
+    },
+
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
+
+    groupId: {
+      type: Schema.Types.ObjectId,
+      ref: "Group",
+      required: true,
+      index: true,
+    },
+
+    key: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// One certificate per user per course
+CertificateSchema.index(
+  {
+    userId: 1,
+    courseId: 1,
+  },
+  {
+    unique: true,
+  }
+);
 
 //Models
 
@@ -485,6 +540,10 @@ export const CourseProgressModel: Model<CourseProgress> =
 export const QuizScoreModel: Model<any> =
     models.QuizScore ||
     model<any>("QuizScore", quizScoreSchema);
+    
 export const ChapterAccessDateModel: Model<any> =
     models.ChapterAccessDate ||
     model<any>("ChapterAccessDate", chapterAccessDateSchema);
+export const CertificateModel: Model<any> =
+    models.Certificate ||
+    model<any>("Certificate", CertificateSchema);

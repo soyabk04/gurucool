@@ -5,33 +5,53 @@ import { createChapter, assignCourseToUsers, getMyCourses,getQuizQuestions,
       getOrganizationCourses, getassignCourseToOrganization,
        createCourse, getCourse, createQuestion, createQuiz,
         assignCourseToGroup, assignCourseToOrganization,
-        questionCheck,
-         getCourses, getassignCourseToGroup } from "../services/course.service.js";
+        questionCheck,getMyCertificatesService,
+         getCourses, getassignCourseToGroup,
+         updateChapter,
+         deleteChapter,
+         } from "../services/course.service.js";
 import { type Request, type Response, type NextFunction } from "express";
 
-
-export const createCourseController = async (req: Request, res: Response, next: NextFunction) => {
-    try {
+export const createCourseController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
         const courseData = req.body.course;
         const user = req.user!;
-        const file = req.file!;
 
-        const course = await createCourse(courseData, user, file);
-        res.status(201).send({
+        const files = req.files as {
+            [fieldname: string]: Express.Multer.File[];
+        };
+
+        const thumbnail =
+            files?.thumbnail?.[0];
+
+        const certTemplate =
+            files?.certTemplate?.[0];
+
+
+        const course = await createCourse(
+            courseData,
+            user,
+            thumbnail,
+            certTemplate
+        );
+
+
+        return res.status(201).send({
             success: true,
             course,
-            message: "Course created success fully"
-        })
-    } catch (error: any) {
-        next(error)
-    }
+            message: "Course created successfully",
+        });
+
 };
 export const getCourseController = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
-    try {
+    
         const courseId = req.params.courseId;
 
         if (typeof courseId !== "string") {
@@ -63,9 +83,7 @@ export const getCourseController = async (
             course: response.course,
             chapters: response.chapters,
         });
-    } catch (error) {
-        next(error);
-    }
+    
 };
 export const getMyCoursesController = async (
     req: Request,
@@ -86,15 +104,14 @@ export const createChapterController = async (req: Request, res: Response) => {
     res.status(201).json(chapter);
 
 };
+
+    
 export const createQuizController = async (req: Request, res: Response) => {
-    try {
         const quizData = req.body.validQuiz;
         const accessToken = req.headers.accesstoken as string;
         const quiz = await createQuiz(quizData);
         res.status(201).json(quiz);
-    } catch (error: any) {
-        res.status(400).json({ message: error.message });
-    }
+
 };
 export const quizSubmitController = async (req: Request, res: Response) => {
     const userAnswers = req.body.userAnswers;
@@ -112,13 +129,10 @@ export const getQuestionsController = async (req: Request, res: Response) => {
         res.status(200).json(question);
 };
 export const createQuestionController = async (req: Request, res: Response) => {
-    try {
         const questionData = req.body.validQuestions;
         const question = await createQuestion(questionData);
         res.status(201).json(question);
-    } catch (error: any) {
-        res.status(400).json({ message: error.message });
-    }
+
 };
 
 export const assignCourseToUsersController = async (
@@ -126,7 +140,7 @@ export const assignCourseToUsersController = async (
     res: Response,
     next: NextFunction
 ) => {
-    try {
+
         const result = await assignCourseToUsers(
             req.body.assignment ?? req.body,
             req.user!
@@ -136,9 +150,7 @@ export const assignCourseToUsersController = async (
             success: true,
             data: result,
         });
-    } catch (err) {
-        next(err);
-    }
+
 };
 export const getCoursesController = async (req: Request, res: Response) => {
     const user = req.user!;
@@ -159,7 +171,7 @@ export const enrollGroupController = async (
     res: Response,
     next: NextFunction
 ) => {
-    try {
+    
         const { groupId, courseId } = req.body;
         const userInfo = req.user!
         console.log(groupId)
@@ -177,34 +189,13 @@ export const enrollGroupController = async (
             success: true,
             data: result,
         });
-    } catch (error: any) {
-        // Known/expected errors -> 400, everything else -> pass to error middleware
-        const knownErrors = [
-            "Course ID is required.",
-            "Group ID is required.",
-            "Course not found.",
-            "Group not found.",
-            "No users found for this group.",
-            "All users in this group are already enrolled in this course.",
-            "One or more users are already enrolled in this course.",
-        ];
-        
-        if (knownErrors.includes(error.message)) {
-            return res.status(400).json({
-                success: false,
-                message: error.message,
-            });
-        }
-
-
-    }
+    
 };
 export const enrollOrgController = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
-    try {
         const { organizationId, courseId } = req.body;
         const userInfo = req.user!
         if (!organizationId || !courseId) {
@@ -221,34 +212,14 @@ export const enrollOrgController = async (
             message: `Enrolled ${result.enrolledCount} user(s). ${result.skippedCount} already enrolled.`,
             data: result,
         });
-    } catch (error: any) {
-        // Known/expected errors -> 400, everything else -> pass to error middleware
-        const knownErrors = [
-            "Course ID is required.",
-            "Group ID is required.",
-            "Course not found.",
-            "Group not found.",
-            "No users found for this group.",
-            "All users in this group are already enrolled in this course.",
-            "One or more users are already enrolled in this course.",
-        ];
 
-        if (knownErrors.includes(error.message)) {
-            return res.status(400).json({
-                success: false,
-                message: error.message,
-            });
-        }
-
-        next();
-    }
 };
 export const getEnrollOrgController = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
-    try {
+    
 
         const userInfo = req.user!
 
@@ -259,34 +230,14 @@ export const getEnrollOrgController = async (
             success: true,
             data: result,
         });
-    } catch (error: any) {
-        // Known/expected errors -> 400, everything else -> pass to error middleware
-        const knownErrors = [
-            "Course ID is required.",
-            "Group ID is required.",
-            "Course not found.",
-            "Group not found.",
-            "No users found for this group.",
-            "All users in this group are already enrolled in this course.",
-            "One or more users are already enrolled in this course.",
-        ];
 
-        if (knownErrors.includes(error.message)) {
-            return res.status(400).json({
-                success: false,
-                message: error.message,
-            });
-        }
-
-        next();
-    }
 };
 export const getEnrollGrpController = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
-    try {
+    
 
         const userInfo = req.user!
 
@@ -297,36 +248,88 @@ export const getEnrollGrpController = async (
             success: true,
             data: result,
         });
-    } catch (error: any) {
-        // Known/expected errors -> 400, everything else -> pass to error middleware
-        const knownErrors = [
-            "Course ID is required.",
-            "Group ID is required.",
-            "Course not found.",
-            "Group not found.",
-            "No users found for this group.",
-            "All users in this group are already enrolled in this course.",
-            "One or more users are already enrolled in this course.",
-        ];
+   
+    
+};
 
-        if (knownErrors.includes(error.message)) {
-            return res.status(400).json({
+export const updateChapterController = async (
+    req: Request<{ chapterId: string }>,
+    res: Response
+) => {
+    try {
+        const { chapterId } = req.params;
+
+        const userInfo = req.user;
+
+        if (!userInfo) {
+            return res.status(401).json({
                 success: false,
-                message: error.message,
+                message: "Unauthorized",
             });
         }
 
-        next();
+        if (!chapterId) {
+            return res.status(400).json({
+                success: false,
+                message: "Chapter ID is required",
+            });
+        }
+
+        let chapterData = {};
+
+        if (req.body.chapter) {
+            try {
+                chapterData =
+                    typeof req.body.chapter === "string"
+                        ? JSON.parse(req.body.chapter)
+                        : req.body.chapter;
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid chapter data",
+                });
+            }
+        }
+
+        let quizData = undefined;
+
+        if (req.body.quiz) {
+            try {
+                quizData =
+                    typeof req.body.quiz === "string"
+                        ? JSON.parse(req.body.quiz)
+                        : req.body.quiz;
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid quiz data",
+                });
+            }
+        }
+
+        const chapter = await updateChapter(
+            chapterId,
+            chapterData,
+            quizData,
+            req.file,
+            userInfo
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Chapter updated successfully",
+            data: chapter,
+        });
+    } catch (error) {
+        throw error;
     }
 };
-
-
 export const getChapterController = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  try {
+  
     const user = req.user!;
 
     const chapterId = Array.isArray(req.params.chapterId)
@@ -344,16 +347,13 @@ export const getChapterController = async (
 
     return res.status(200).json(response,
     );
-  } catch (error) {
-    next(error);
-  }
 };
 export const getOrganizationCoursesController = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
-    try {
+
 
         const userInfo = req.user!
 
@@ -364,34 +364,13 @@ export const getOrganizationCoursesController = async (
             success: true,
             data: result,
         });
-    } catch (error: any) {
-        // Known/expected errors -> 400, everything else -> pass to error middleware
-        const knownErrors = [
-            "Course ID is required.",
-            "Group ID is required.",
-            "Course not found.",
-            "Group not found.",
-            "No users found for this group.",
-            "All users in this group are already enrolled in this course.",
-            "One or more users are already enrolled in this course.",
-        ];
 
-        if (knownErrors.includes(error.message)) {
-            return res.status(400).json({
-                success: false,
-                message: error.message,
-            });
-        }
-
-        next(error);
-    }
 };
 
 export const updateChapterProgressController = async (
   req: Request,
   res: Response
 ) => {
-  try {
     // Authentication check
     if (!req.user?.userId) {
       return res.status(401).json({
@@ -468,26 +447,13 @@ export const updateChapterProgressController = async (
         : "Chapter progress updated successfully",
       data: progress,
     });
-  } catch (error: any) {
-    console.error(
-      "Update chapter progress error:",
-      error
-    );
 
-    return res.status(400).json({
-      success: false,
-      message:
-        error?.message ||
-        "Failed to update chapter progress",
-    });
-  }
 };
 
 export const getCourseProgressController = async (
   req: Request,
   res: Response
 ) => {
-  try {
     // Make sure user is authenticated
     if (!req.user?.userId) {
       return res.status(401).json({
@@ -517,17 +483,46 @@ export const getCourseProgressController = async (
       success: true,
       data: progress,
     });
-  } catch (error: any) {
-    console.error(
-      "Get course progress error:",
-      error
-    );
 
-    return res.status(400).json({
-      success: false,
-      message:
-        error?.message ||
-        "Failed to get course progress",
+};
+
+export const getMyCertificatesController = async (
+  req: Request,
+  res: Response
+) => {
+
+    const userInfo = req.user!;
+    const certificates = await getMyCertificatesService(userInfo);
+    return res.status(200).json({
+      success: true,
+      data: certificates,
     });
-  }
+
+};
+export const deleteChapterController = async (
+    req: Request<{
+        chapterId: string;
+    }>,
+    res: Response
+) => {
+
+        const { chapterId } =
+            req.params;
+
+        const userInfo =
+            req.user;
+
+        const result =
+            await deleteChapter(
+                chapterId,
+                userInfo
+            );
+
+        return res.status(200).json({
+            success: true,
+            message:
+                "Chapter deleted successfully",
+            data: result,
+        });
+
 };

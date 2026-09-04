@@ -11,6 +11,9 @@ import {
     getOrganizationController,
     getOrganizationDetailsController,
     editOrganizationController,
+    updateGroupController,
+    getGroupByIdController,
+    deleteGroupController,
 } from "../controller/organization.controller.js";
 
 import {
@@ -46,7 +49,22 @@ organizationRouter.post(
     createRateLimiter(100, 15),
     asyncHandler(getOrgThemeController)
 );
+organizationRouter.put(
+    "/groups/:groupId",
+    authMiddleware,
+    asyncHandler(updateGroupController)
+);
+organizationRouter.get(
+    "/groups/:groupId",
+    authMiddleware,
+    asyncHandler(getGroupByIdController)
+);
 
+organizationRouter.delete(
+    "/groups/:groupId",
+    authMiddleware,
+    asyncHandler(deleteGroupController)
+);
 organizationRouter.post(
     "/",
     createRateLimiter(500, 15, "Too many organization creation requests."),

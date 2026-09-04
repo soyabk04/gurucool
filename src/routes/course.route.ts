@@ -1,22 +1,45 @@
 import { Router } from "express";
-import { createChapterController,getCoursesController,updateChapterProgressController,getCourseProgressController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController, getQuestionsController, quizSubmitController } from "../controller/course.controller.js";
+import { createChapterController,getCoursesController,updateChapterProgressController,getCourseProgressController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController, getQuestionsController, quizSubmitController, getMyCertificatesController, updateChapterController, deleteChapterController } from "../controller/course.controller.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { authMiddleware } from "../middleware/authentication.middleware.js";
 import { Assignmentvalidator, chapterValidator, courseValidator, questionValidator, quizValidator } from "../validator/courses.validator.js";
 import { upload } from "../middleware/upload.middleware.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { createRateLimiter } from "../middleware/rateLimit.middleware.js";
+import { getMyCertificatesService } from "../services/course.service.js";
 
 const courseRouter = Router();
 
 courseRouter.post(
     "/",
-    createRateLimiter(10, 15, "Too many course creation requests."),
+
+    createRateLimiter(
+        10,
+        15,
+        "Too many course creation requests."
+    ),
+
     authMiddleware,
-    authorizeRoles("superadmin", "admin"),
-    upload.single("thumbnail"),
+
+    authorizeRoles(
+        "superadmin",
+        "admin"
+    ),
+
+    upload.fields([
+        {
+            name: "thumbnail",
+            maxCount: 1,
+        },
+        {
+            name: "certTemplate",
+            maxCount: 1,
+        },
+    ]),
+
     courseValidator,
-    createCourseController
+
+    asyncHandler(createCourseController)
 );
 
 courseRouter.post(
@@ -35,19 +58,19 @@ courseRouter.post(
     authMiddleware,
     authorizeRoles("superadmin", "admin"),
     quizValidator,
-    createQuizController
+    asyncHandler(createQuizController)
 );
 
 courseRouter.get(
     "/questions/:chapterId",
     authMiddleware,
-    getQuestionsController
+    asyncHandler(getQuestionsController)
 );
 courseRouter.post(
     "/quiz/submit",
     createRateLimiter(20, 15),
     authMiddleware,
-    quizSubmitController
+    asyncHandler(quizSubmitController)
 );
 
 courseRouter.post(
@@ -55,7 +78,7 @@ courseRouter.post(
     createRateLimiter(30, 15),
     authMiddleware,
     authorizeRoles("superadmin", "admin", "coordinator"),
-    assignCourseToUsersController
+    asyncHandler(assignCourseToUsersController)
 );
 
 courseRouter.get(
@@ -63,7 +86,7 @@ courseRouter.get(
     createRateLimiter(200, 15),
     authMiddleware,
     authorizeRoles("superadmin", "admin", "coordinator", "user"),
-    getCoursesController
+    asyncHandler(getCoursesController)
 );
 
 courseRouter.post(
@@ -71,7 +94,7 @@ courseRouter.post(
     createRateLimiter(10, 15),
     authMiddleware,
     authorizeRoles("admin"),
-    enrollGroupController
+    asyncHandler(enrollGroupController)
 );
 
 courseRouter.post(
@@ -79,7 +102,7 @@ courseRouter.post(
     createRateLimiter(5, 15),
     authMiddleware,
     authorizeRoles("superadmin"),
-    enrollOrgController
+    asyncHandler(enrollOrgController)
 );
 
 courseRouter.get(
@@ -87,7 +110,7 @@ courseRouter.get(
     createRateLimiter(100, 15),
     authMiddleware,
     authorizeRoles("admin", "superadmin"),
-    getEnrollOrgController
+    asyncHandler(getEnrollOrgController)
 );
 
 courseRouter.get(
@@ -95,7 +118,7 @@ courseRouter.get(
     createRateLimiter(100, 15),
     authMiddleware,
     authorizeRoles("admin", "superadmin"),
-    getEnrollGrpController
+    asyncHandler(getEnrollGrpController)
 );
 
 courseRouter.get(
@@ -103,14 +126,14 @@ courseRouter.get(
     createRateLimiter(100, 15),
     authMiddleware,
     authorizeRoles("admin"),
-    getCoursesController
+    asyncHandler(getCoursesController)
 );
 
 courseRouter.get(
     "/course/:courseId",
     createRateLimiter(200, 15),
     authMiddleware,
-    getCourseController
+    asyncHandler(getCourseController)
 );
 
 courseRouter.get(
@@ -125,13 +148,19 @@ courseRouter.get(
     "/chapter/:chapterId",
     createRateLimiter(200, 15),
     authMiddleware,
-    authorizeRoles("coordinator", "user"),
-    getChapterController
+    authorizeRoles("coordinator", "user",'admin','superadmin'),
+    asyncHandler(getChapterController)
 );
 courseRouter.get(
   "/progress/:courseId",
   authMiddleware,
-  getCourseProgressController
+  asyncHandler(getCourseProgressController)
+);
+courseRouter.get(
+  "/mycertificates",
+  authMiddleware,
+  authorizeRoles("superadmin", "admin", "coordinator", "user"),
+  asyncHandler(getMyCertificatesController)
 );
 
 courseRouter.patch(
@@ -139,4 +168,18 @@ courseRouter.patch(
   authMiddleware,
   updateChapterProgressController
 );
+courseRouter.patch(
+    "/chapter/update/:chapterId",
+    authMiddleware,
+    authorizeRoles("superadmin", "admin"),
+    upload.single("video"),
+    asyncHandler(updateChapterController)
+);
+
+courseRouter.delete(
+    "/chapters/:chapterId",
+    authMiddleware,
+    asyncHandler(deleteChapterController)
+);
+
 export default courseRouter;

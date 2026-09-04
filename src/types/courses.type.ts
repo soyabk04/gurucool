@@ -7,6 +7,7 @@ export interface Course {
     instructor: Types.ObjectId; // Reference to User model
     createdAt?: Date;
     updatedAt?: Date;
+    certTemplate?: string;
 }
 export interface Chapter{
     serialNo:number;

@@ -1,63 +1,183 @@
-import { ChapterModel, GroupCourse, CourseModel, OrganizationCourse, QuestionModel, QuizModel, CourseProgressModel, EnrollmentModel, QuizScoreModel, ChapterAccessDateModel } from "../models/course.model.js";
+import { ChapterModel, GroupCourse,CertificateModel, CourseModel, OrganizationCourse, QuestionModel, QuizModel, CourseProgressModel, EnrollmentModel, QuizScoreModel, ChapterAccessDateModel } from "../models/course.model.js";
 import mongoose from "mongoose";
 import { Usermodel } from "../models/user.model.js";
-import type { Chapter, Course, Question, Quiz } from "../types/courses.type.js";
+import type { Chapter, Course, Enrollment, Question, Quiz } from "../types/courses.type.js";
 import { Groupmodel } from "../models/organization.model.js";
 import { R2Service } from "../utils/cloudflare.js";
 import { AppError } from "../errors/AppError.js";
 import { Organizationmodel } from "../models/organization.model.js";
-import { getVideoStreamUrl } from "../utils/getVideoUrl.js";
+import { getLogo, getVideoStreamUrl } from "../utils/getVideoUrl.js";
 
 import {chapterAccessDateModel} from '../models/course.model.js'
+import { generateCertificate } from "../utils/certificateGenerator.js";
+import { userInfo } from "node:os";
 
 
 
-export const createCourse = async (
-    courseData: Course,
-    userInfo: { userId: string; role: string },
-    file: Express.Multer.File
-) => {
-    const instructor = await Usermodel.findById(userInfo.userId);
-    console.log("userInfo.role", userInfo.role);
-    if (!instructor) {
-        throw new AppError("Instructor not found.", 404, "INSTRUCTOR_NOT_FOUND");
-    }
-    console.log("userInfo.role", userInfo.role);
-    const course = await CourseModel.create({
-        ...courseData,
-        instructor: instructor._id,
-    });
-    if (!course) {
-        throw new AppError(
-            "Failed to create Course",
-            500,
-            "FAILED_CREATE_COURSE"
-        );
-    }
-
-    if (file) {
-        const key = `Courses/${course._id}/thumbnail`;
-
-        const uploaded = await R2Service.upload(file, key);
-
-        if (!uploaded) {
-            throw new AppError(
-                "Failed to upload thumbnail of course",
-                500,
-                "THUMBNAIL_UPLOAD_FAILED"
-            );
-        }
-
-        course.thumbnail = key;
-        await course.save();
-    }
-    const userOrganization = await Usermodel.findById(userInfo.userId).select("organization");
-    if (!userOrganization?.organization) {
-        throw new AppError("User does not belong to any organization.", 400, "USER_NO_ORGANIZATION");
-    }
-    await assignCourseToOrganization(userOrganization.organization.toString(), course._id.toString(), userInfo);
-    return { course }
-
+export const createCourse = async ( 
+    courseData: Course, 
+    userInfo: { userId: string; role: string }, 
+    file?: Express.Multer.File, 
+    certTemplate?: Express.Multer.File 
+) => { 
+ 
+    // ========================================== 
+    // 1. Find instructor 
+    // ========================================== 
+ 
+    const instructor = await Usermodel.findById( 
+        userInfo.userId 
+    ); 
+ 
+    console.log( 
+        "userInfo.role", 
+        userInfo.role 
+    ); 
+ 
+    if (!instructor) { 
+        throw new AppError( 
+            "Instructor not found.", 
+            404, 
+            "INSTRUCTOR_NOT_FOUND" 
+        ); 
+    } 
+ 
+ 
+    // ========================================== 
+    // 2. Create course 
+    // ========================================== 
+ 
+    const course = await CourseModel.create({ 
+        ...courseData, 
+        instructor: instructor._id, 
+    }); 
+ 
+    if (!course) { 
+        throw new AppError( 
+            "Failed to create Course", 
+            500, 
+            "FAILED_CREATE_COURSE" 
+        ); 
+    } 
+ 
+ 
+    // ========================================== 
+    // 3. Upload course thumbnail 
+    // ========================================== 
+ 
+    if (file) { 
+ 
+        const key = 
+            `Courses/${course._id}/thumbnail`; 
+ 
+        const uploaded = 
+            await R2Service.upload( 
+                file, 
+                key 
+            ); 
+ 
+        if (!uploaded) { 
+            throw new AppError( 
+                "Failed to upload thumbnail of course", 
+                500, 
+                "THUMBNAIL_UPLOAD_FAILED" 
+            ); 
+        } 
+ 
+        course.thumbnail = key; 
+ 
+        await course.save(); 
+    } 
+ 
+ 
+    // ========================================== 
+    // 4. Upload certificate template 
+    // ========================================== 
+ 
+    if (certTemplate) { 
+ 
+        // Optional validation 
+        if ( 
+            certTemplate.mimetype !== 
+            "application/pdf" 
+        ) { 
+            throw new AppError( 
+                "Certificate template must be a PDF", 
+                400, 
+                "INVALID_CERTIFICATE_TEMPLATE" 
+            ); 
+        } 
+ 
+ 
+        const key = 
+            `Courses/${course._id}/certificate-template.pdf`; 
+ 
+ 
+        const uploaded = 
+            await R2Service.upload( 
+                certTemplate, 
+                key 
+            ); 
+ 
+ 
+        if (!uploaded) { 
+            throw new AppError( 
+                "Failed to upload certificate template", 
+                500, 
+                "CERTIFICATE_TEMPLATE_UPLOAD_FAILED" 
+            ); 
+        } 
+ 
+ 
+        course.certTemplate = key; 
+ 
+        await course.save(); 
+    } 
+ 
+ 
+    // ========================================== 
+    // 5. Get user's organization 
+    // ========================================== 
+    if (userInfo.role == "superadmin") { 
+ 
+    return { 
+        course, 
+    }; 
+    } 
+ 
+    const userOrganization = 
+        await Usermodel 
+            .findById(userInfo.userId) 
+            .select("organization"); 
+ 
+ 
+    if (!userOrganization?.organization) { 
+        throw new AppError( 
+            "User does not belong to any organization.", 
+            400, 
+            "USER_NO_ORGANIZATION" 
+        ); 
+    } 
+ 
+ 
+    // ========================================== 
+    // 6. Assign course to organization 
+    // ========================================== 
+ 
+    await assignCourseToOrganization( 
+        userOrganization.organization.toString(), 
+        course._id.toString(), 
+        userInfo 
+    ); 
+ 
+ 
+    // ========================================== 
+    // 7. Return course 
+    // ========================================== 
+ 
+    return { 
+        course, 
+    }; 
 };
 
 export const createChapter = async (
@@ -156,6 +276,418 @@ export const createChapter = async (
 
     return chapter;
 };
+
+export const updateChapter = async (
+    chapterId: string,
+    chapterData: Partial<Chapter>,
+    quizData?: {
+        deleteQuiz?: boolean;
+        passingMarks?: number;
+        totalMarks?: number;
+        questions?: {
+            _id?: string;
+            question: string;
+            options: string[];
+            answer: string;
+            marks: number;
+        }[];
+    },
+    file?: Express.Multer.File,
+    userInfo?: {
+        userId: string;
+        role: string;
+    }
+) => {
+    try {
+        // ==========================================
+        // 1. Validate chapter ID
+        // ==========================================
+
+        if (!mongoose.Types.ObjectId.isValid(chapterId)) {
+            throw new AppError(
+                "Invalid chapter id",
+                400,
+                "INVALID_CHAPTER_ID"
+            );
+        }
+
+        // ==========================================
+        // 2. Find chapter
+        // ==========================================
+
+        const chapter = await ChapterModel.findById(chapterId);
+
+        if (!chapter) {
+            throw new AppError(
+                "Chapter not found",
+                404,
+                "CHAPTER_NOT_FOUND"
+            );
+        }
+
+        // ==========================================
+        // 3. Find course
+        // ==========================================
+
+        const course = await CourseModel.findById(
+            chapter.courseId
+        );
+
+        if (!course) {
+            throw new AppError(
+                "Course not found",
+                404,
+                "COURSE_NOT_FOUND"
+            );
+        }
+
+        // ==========================================
+        // 4. Authorization
+        // ==========================================
+
+        if (!userInfo) {
+            throw new AppError(
+                "Unauthorized",
+                401,
+                "UNAUTHORIZED"
+            );
+        }
+
+        const isSuperAdmin =
+            userInfo.role === "superadmin";
+
+        const isInstructor =
+            course.instructor?.toString() ===
+            userInfo.userId;
+
+        if (!isSuperAdmin && !isInstructor) {
+            throw new AppError(
+                "User is not authorized to edit this chapter",
+                403,
+                "FORBIDDEN"
+            );
+        }
+
+        // ==========================================
+        // 5. Update chapter fields
+        // ==========================================
+
+        if (chapterData.title !== undefined) {
+            chapter.title = chapterData.title;
+        }
+
+        if (chapterData.description !== undefined) {
+            chapter.description =
+                chapterData.description;
+        }
+
+        // Do NOT update:
+        //
+        // chapter.courseId
+        // chapter.serialNo
+
+        // ==========================================
+        // 6. Upload new video
+        // ==========================================
+
+        if (file) {
+            const key =
+                `Courses/${chapter.courseId}/${chapter._id}/video`;
+
+            const uploaded =
+                await R2Service.upload(
+                    file,
+                    key
+                );
+
+            if (!uploaded) {
+                throw new AppError(
+                    "Failed to upload chapter video",
+                    500,
+                    "VIDEO_UPLOAD_FAILED"
+                );
+            }
+
+            chapter.videoUrl = key;
+        }
+
+        // ==========================================
+        // 7. Save chapter
+        // ==========================================
+
+        await chapter.save();
+
+        // ==========================================
+        // 8. Quiz handling
+        // ==========================================
+
+        if (quizData !== undefined) {
+            const quiz = await QuizModel.findOne({
+                chapterId: chapter._id,
+            });
+
+            // ======================================
+            // 8A. DELETE ENTIRE QUIZ
+            // ======================================
+
+            if (quizData.deleteQuiz === true) {
+                if (quiz) {
+                    // Delete all questions belonging
+                    // to this quiz first.
+                    await QuestionModel.deleteMany({
+                        quizId: quiz._id,
+                    });
+
+                    // Then delete the quiz itself.
+                    await QuizModel.deleteOne({
+                        _id: quiz._id,
+                    });
+                }
+            }
+
+            // ======================================
+            // 8B. CREATE NEW QUIZ
+            // ======================================
+
+            else if (!quiz) {
+                if (
+                    quizData.passingMarks === undefined ||
+                    quizData.totalMarks === undefined
+                ) {
+                    throw new AppError(
+                        "Passing marks and total marks are required",
+                        400,
+                        "INVALID_QUIZ_DATA"
+                    );
+                }
+
+                const newQuiz =
+                    await QuizModel.create({
+                        chapterId: chapter._id,
+                        passingMarks:
+                            quizData.passingMarks,
+                        totalMarks:
+                            quizData.totalMarks,
+                    });
+
+                // Create questions if supplied
+                if (
+                    quizData.questions &&
+                    quizData.questions.length > 0
+                ) {
+                    const questionData =
+                        quizData.questions.map(
+                            (question) => ({
+                                quizId: newQuiz._id,
+                                question:
+                                    question.question,
+                                options:
+                                    question.options,
+                                answer:
+                                    question.answer,
+                                marks:
+                                    question.marks,
+                            })
+                        );
+
+                    await QuestionModel.insertMany(
+                        questionData
+                    );
+                }
+            }
+
+            // ======================================
+            // 8C. UPDATE EXISTING QUIZ
+            // ======================================
+
+            else {
+                // ----------------------------------
+                // Update passing marks
+                // ----------------------------------
+
+                if (
+                    quizData.passingMarks !==
+                    undefined
+                ) {
+                    quiz.passingMarks =
+                        quizData.passingMarks;
+                }
+
+                // ----------------------------------
+                // Update total marks
+                // ----------------------------------
+
+                if (
+                    quizData.totalMarks !==
+                    undefined
+                ) {
+                    quiz.totalMarks =
+                        quizData.totalMarks;
+                }
+
+                await quiz.save();
+
+                // ----------------------------------
+                // Update questions
+                // ----------------------------------
+
+                if (
+                    quizData.questions !==
+                    undefined
+                ) {
+                    // Validate IDs first
+                    for (
+                        const question of
+                        quizData.questions
+                    ) {
+                        if (
+                            question._id &&
+                            !mongoose.Types.ObjectId.isValid(
+                                question._id
+                            )
+                        ) {
+                            throw new AppError(
+                                "Invalid question id",
+                                400,
+                                "INVALID_QUESTION_ID"
+                            );
+                        }
+                    }
+
+                    // ----------------------------------
+                    // Get incoming existing question IDs
+                    // ----------------------------------
+
+                    const incomingQuestionIds =
+                        quizData.questions
+                            .filter(
+                                (question) =>
+                                    question._id
+                            )
+                            .map(
+                                (question) =>
+                                    new mongoose.Types.ObjectId(
+                                        question._id!
+                                    )
+                            );
+
+                    // ----------------------------------
+                    // Delete removed questions
+                    //
+                    // Example:
+                    //
+                    // DB:
+                    // Q1
+                    // Q2
+                    // Q3
+                    //
+                    // Frontend sends:
+                    // Q1
+                    // Q3
+                    //
+                    // Q2 gets deleted.
+                    // ----------------------------------
+
+                    await QuestionModel.deleteMany({
+                        quizId: quiz._id,
+                        _id: {
+                            $nin:
+                                incomingQuestionIds,
+                        },
+                    });
+
+                    // ----------------------------------
+                    // Update existing / create new
+                    // ----------------------------------
+
+                    for (
+                        const question of
+                        quizData.questions
+                    ) {
+                        // ==================================
+                        // Existing question
+                        // ==================================
+
+                        if (question._id) {
+                            const existingQuestion =
+                                await QuestionModel.findOne(
+                                    {
+                                        _id:
+                                            question._id,
+                                        quizId:
+                                            quiz._id,
+                                    }
+                                );
+
+                            if (
+                                !existingQuestion
+                            ) {
+                                throw new AppError(
+                                    "Question not found",
+                                    404,
+                                    "QUESTION_NOT_FOUND"
+                                );
+                            }
+
+                            existingQuestion.question =
+                                question.question;
+
+                            existingQuestion.options =
+                                question.options;
+
+                            existingQuestion.answer =
+                                question.answer;
+
+                            existingQuestion.marks =
+                                question.marks;
+
+                            await existingQuestion.save();
+                        }
+
+                        // ==================================
+                        // New question
+                        // ==================================
+
+                        else {
+                            await QuestionModel.create({
+                                quizId: quiz._id,
+                                question:
+                                    question.question,
+                                options:
+                                    question.options,
+                                answer:
+                                    question.answer,
+                                marks:
+                                    question.marks,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 9. Return updated chapter
+        // ==========================================
+
+        return chapter;
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+
+        console.error(
+            "Update chapter error:",
+            error
+        );
+
+        throw new AppError(
+            "Failed to update chapter",
+            500,
+            "FAILED_UPDATE_CHAPTER"
+        );
+    }
+};
 export const getQuizQuestions = async (chapterId: string) => {
     const quiz = await QuizModel.findOne({ chapterId });
 
@@ -202,7 +734,7 @@ export const getCourse = async (
 ) => {
     /*
      * --------------------------------------------------
-     * Validate course ID
+     * 1. Validate course ID
      * --------------------------------------------------
      */
 
@@ -216,13 +748,11 @@ export const getCourse = async (
 
     /*
      * --------------------------------------------------
-     * Find course
+     * 2. Find course
      * --------------------------------------------------
      */
 
-    const course = await CourseModel.findById(
-        courseId
-    );
+    const course = await CourseModel.findById(courseId);
 
     if (!course) {
         throw new AppError(
@@ -234,12 +764,57 @@ export const getCourse = async (
 
     /*
      * --------------------------------------------------
-     * Get chapters
+     * 3. SUPERADMIN
+     * --------------------------------------------------
+     *
+     * Superadmin can access any course.
+     *
+     * No enrollment required.
+     * No progress restriction.
+     * No chapter access-date restriction.
      * --------------------------------------------------
      */
 
-    const chapters =
-        await ChapterModel.find({
+    if (userInfo.role === "superadmin") {
+        const chapters = await ChapterModel.find({
+            courseId,
+        })
+            .sort({ serialNo: 1 })
+            .lean();
+
+        return {
+            success: true,
+            course,
+            chapters: chapters.map((chapter) => ({
+                ...chapter,
+
+                completed: false,
+                watchedDuration: 0,
+
+                access: {
+                    accessDate: null,
+                    lastDate: null,
+                    status: "available",
+                },
+            })),
+        };
+    }
+
+    /*
+     * --------------------------------------------------
+     * 4. COORDINATOR
+     * --------------------------------------------------
+     *
+     * Coordinator can access course content without
+     * enrollment.
+     *
+     * No progress restriction.
+     * No chapter access-date restriction.
+     * --------------------------------------------------
+     */
+
+    if (userInfo.role === "coordinator" || userInfo.role === "admin" || userInfo.role === "superadmin") {
+        const chapters = await ChapterModel.find({
             courseId,
         })
             .select("-courseId")
@@ -247,45 +822,43 @@ export const getCourse = async (
             .sort({ serialNo: 1 })
             .lean();
 
-    /*
-     * --------------------------------------------------
-     * Coordinator
-     * --------------------------------------------------
-     *
-     * Coordinator doesn't have an Enrollment.
-     * Therefore there is no ChapterAccessDate
-     * to attach.
-     * --------------------------------------------------
-     */
-
-    if (
-        userInfo.role === "coordinator"
-    ) {
         return {
             success: true,
             course,
-            chapters: chapters.map(
-                (chapter) => ({
-                    ...chapter,
-                    access: null,
-                })
-            ),
+            chapters: chapters.map((chapter) => ({
+                ...chapter,
+
+                completed: false,
+                watchedDuration: 0,
+
+                access: {
+                    accessDate: null,
+                    lastDate: null,
+                    status: "available",
+                },
+            })),
         };
     }
 
     /*
      * --------------------------------------------------
-     * User enrollment
+     * 5. ONLY USER CAN CONTINUE
      * --------------------------------------------------
      */
 
-    if (userInfo.role !== "user") {
-        throw new AppError(
-            "Forbidden",
-            403,
-            "FORBIDDEN"
-        );
-    }
+    // if (userInfo.role !== "user") {
+    //     throw new AppError(
+    //         "Forbidden",
+    //         403,
+    //         "FORBIDDEN"
+    //     );
+    // }
+
+    /*
+     * --------------------------------------------------
+     * 6. Find enrollment
+     * --------------------------------------------------
+     */
 
     const enrollment =
         await EnrollmentModel.findOne({
@@ -304,7 +877,21 @@ export const getCourse = async (
 
     /*
      * --------------------------------------------------
-     * Get access dates
+     * 7. Get chapters
+     * --------------------------------------------------
+     */
+
+    const chapters = await ChapterModel.find({
+        courseId,
+    })
+        .select("-courseId")
+        .select("-videoUrl")
+        .sort({ serialNo: 1 })
+        .lean();
+
+    /*
+     * --------------------------------------------------
+     * 8. Get access dates
      * --------------------------------------------------
      */
 
@@ -312,12 +899,6 @@ export const getCourse = async (
         await ChapterAccessDateModel.find({
             enrollmentId: enrollment._id,
         }).lean();
-
-    /*
-     * --------------------------------------------------
-     * Create lookup map
-     * --------------------------------------------------
-     */
 
     const accessMap = new Map(
         accessDates.map((item) => [
@@ -328,7 +909,7 @@ export const getCourse = async (
 
     /*
      * --------------------------------------------------
-     * Get progress
+     * 9. Get progress
      * --------------------------------------------------
      */
 
@@ -347,7 +928,7 @@ export const getCourse = async (
 
     /*
      * --------------------------------------------------
-     * Current time
+     * 10. Current time
      * --------------------------------------------------
      */
 
@@ -355,110 +936,112 @@ export const getCourse = async (
 
     /*
      * --------------------------------------------------
-     * Attach access + progress to chapters
+     * 11. Build chapters
      * --------------------------------------------------
      */
 
-    const chaptersWithAccess =
-        chapters.map(
-            (chapter, index) => {
-                const access =
-                    accessMap.get(
-                        chapter._id.toString()
+    const chaptersWithAccess = chapters.map(
+        (chapter, index) => {
+            const access =
+                accessMap.get(
+                    chapter._id.toString()
+                );
+
+            const chapterProgress =
+                progressMap.get(
+                    chapter._id.toString()
+                );
+
+            let status:
+                | "available"
+                | "upcoming"
+                | "expired"
+                | "locked" = "available";
+
+            /*
+             * Access date
+             */
+
+            if (access) {
+                const accessDate =
+                    new Date(
+                        access.accessDate
                     );
 
-                const chapterProgress =
-                    progressMap.get(
-                        chapter._id.toString()
+                const lastDate =
+                    new Date(
+                        access.lastDate
                     );
 
-                let status:
-                    | "available"
-                    | "upcoming"
-                    | "expired"
-                    | "locked"
-                    | "not_configured" =
-                    "not_configured";
-
-                /*
-                 * --------------------------------------------------
-                 * Check date
-                 * --------------------------------------------------
-                 */
-
-                if (access) {
-                    if (
-                        now <
-                        new Date(
-                            access.accessDate
-                        )
-                    ) {
-                        status = "upcoming";
-                    } else if (
-                        now >
-                        new Date(
-                            access.lastDate
-                        )
-                    ) {
-                        status = "expired";
-                    } else {
-                        status = "available";
-                    }
+                if (now < accessDate) {
+                    status = "upcoming";
+                } else if (now > lastDate) {
+                    status = "expired";
+                } else {
+                    status = "available";
                 }
-
-                /*
-                 * --------------------------------------------------
-                 * Check previous chapter
-                 * --------------------------------------------------
-                 */
-
-                if (index > 0) {
-                    const previousChapter =
-                        chapters[index - 1];
-
-                    const previousProgress =
-                        progressMap.get(
-                            previousChapter._id.toString()
-                        );
-
-                    if (
-                        !previousProgress?.completed
-                    ) {
-                        status = "locked";
-                    }
-                }
-
-                return {
-                    ...chapter,
-
-                    completed:
-                        chapterProgress?.completed ??
-                        false,
-
-                    watchedDuration:
-                        chapterProgress?.watchedDuration ??
-                        0,
-
-                    access: access
-                        ? {
-                              accessDate:
-                                  access.accessDate,
-
-                              lastDate:
-                                  access.lastDate,
-
-                              status,
-                          }
-                        : null,
-                };
             }
-        );
 
+            /*
+             * Previous chapter
+             */
+
+            if (index > 0) {
+                const previousChapter =
+                    chapters[index - 1];
+
+                const previousProgress =
+                    progressMap.get(
+                        previousChapter._id.toString()
+                    );
+
+                if (
+                    !previousProgress?.completed
+                ) {
+                    status = "locked";
+                }
+            }
+
+            return {
+                ...chapter,
+
+                completed:
+                    chapterProgress?.completed ??
+                    false,
+
+                watchedDuration:
+                    chapterProgress?.watchedDuration ??
+                    0,
+
+                access: access
+                    ? {
+                          accessDate:
+                              access.accessDate,
+
+                          lastDate:
+                              access.lastDate,
+
+                          status,
+                      }
+                    : {
+                          accessDate: null,
+                          lastDate: null,
+                          status: "available",
+                      },
+            };
+        }
+    );
+
+    /*
+     * --------------------------------------------------
+     * 12. Return
+     * --------------------------------------------------
+     */
+    console.log(chaptersWithAccess);
     return {
         success: true,
         course,
-        chapters:
-            chaptersWithAccess,
+        chapters: chaptersWithAccess,
     };
 };
 export const getMyCourses = async (userInfo: { userId: string; role: string }) => {
@@ -1136,7 +1719,8 @@ export const assignCourseToOrganization = async (
     courseId: string,
     userInfo: { userId: string; role: string }
 ) => {
-    if (userInfo.role !== "superadmin" && userInfo.role !== "admin") {
+
+    if (userInfo?.role !== "superadmin" && userInfo?.role !== "admin") {
         throw new Error("Only Super Admin or Admin can assign courses.");
     }
 
@@ -1246,6 +1830,7 @@ export const checkChapterAccess = async (
     userId: string,
     chapterId: string
 ) => {
+    console.log(chapterId, userId);
     if (!mongoose.Types.ObjectId.isValid(chapterId)) {
         throw new AppError(
             "Invalid chapter id",
@@ -1287,16 +1872,26 @@ export const checkChapterAccess = async (
             chapterId,
         });
 
+    /*
+     * No access-date configuration means
+     * there is no date restriction.
+     *
+     * Allow the user to continue.
+     */
+    console.log("access:", access);
     if (!access) {
-        throw new AppError(
-            "Chapter access has not been configured.",
-            403,
-            "CHAPTER_ACCESS_NOT_CONFIGURED"
-        );
+        return {
+            allowed: true,
+            enrollment,
+            access: null,
+        };
     }
 
     const now = new Date();
 
+    /*
+     * Chapter is not available yet.
+     */
     if (now < access.accessDate) {
         throw new AppError(
             "This chapter is not available yet.",
@@ -1305,6 +1900,9 @@ export const checkChapterAccess = async (
         );
     }
 
+    /*
+     * Chapter access has expired.
+     */
     if (now > access.lastDate) {
         throw new AppError(
             "Access to this chapter has expired.",
@@ -1446,6 +2044,7 @@ export const getChapter = async (
     return {
         id: chapter._id,
         title: chapter.title,
+        description: chapter.description,
         videoUrl: url,
         serialNo: chapter.serialNo,
     };
@@ -1609,7 +2208,42 @@ export const updateChapterProgressService = async ({
       },
     }
   );
+  const course = await CourseModel.findById(courseId);
+   const certLink =await getLogo(course.certTemplate || "")
+   if (courseProgress === 100) {
+    const user = await Usermodel.findById(userId)
+    
+    const organizationId = user?.organization?.toString() || ""
+    const {key}=await generateCertificate({
+        organizationId,
+        groupId: user?.groupId?.toString() || "",
+        courseId,
+        userId,
+        certTemplateLink: certLink || "",
+    });
+    const certificate = await CertificateModel.create({
+        
+        userId,
+        courseId,
+        organizationId,
+        groupId: user?.groupId?.toString() || "",
+        key,
 
+    });
+
+    certificate.save();
+
+    await EnrollmentModel.updateOne(
+      {
+        _id: enrollment._id,
+      },
+      {
+        $set: {
+          completed: true,
+        },
+      }
+    );
+  }
   // --------------------------------
   // 9. Return everything
   // --------------------------------
@@ -1719,6 +2353,203 @@ export const getCourseProgressService = async (
   };
 };
 
+export const getMyCertificatesService = async (
+    userInfo: {
+        userId: string;
+        role: string;
+    }
+) => {
+    const certificates =
+        await CertificateModel.find({
+            userId: userInfo.userId,
+        })
+            .populate(
+                "courseId",
+                "title"
+            )
+            .lean();
 
+    const certificatesWithUrls =
+        await Promise.all(
+            certificates.map(
+                async (certificate) => {
+                    const course =
+                        certificate.courseId as unknown as {
+                            title: string;
+                        };
 
+                    const certificateLink =
+                        await getLogo(
+                            certificate.key
+                        );
+
+                    return {
+                        ...certificate,
+
+                        courseTitle:
+                            course?.title ?? "",
+
+                        certificateLink,
+                    };
+                }
+            )
+        );
+
+    return certificatesWithUrls;
+};
+export const deleteChapter = async (
+    chapterId: string,
+    userInfo?: {
+        userId: string;
+        role: string;
+    }
+) => {
+    try {
+        // ==========================================
+        // 1. Validate chapter ID
+        // ==========================================
+
+        if (
+            !mongoose.Types.ObjectId.isValid(
+                chapterId
+            )
+        ) {
+            throw new AppError(
+                "Invalid chapter id",
+                400,
+                "INVALID_CHAPTER_ID"
+            );
+        }
+
+        // ==========================================
+        // 2. Find chapter
+        // ==========================================
+
+        const chapter =
+            await ChapterModel.findById(
+                chapterId
+            );
+
+        if (!chapter) {
+            throw new AppError(
+                "Chapter not found",
+                404,
+                "CHAPTER_NOT_FOUND"
+            );
+        }
+
+        // ==========================================
+        // 3. Find course
+        // ==========================================
+
+        const course =
+            await CourseModel.findById(
+                chapter.courseId
+            );
+
+        if (!course) {
+            throw new AppError(
+                "Course not found",
+                404,
+                "COURSE_NOT_FOUND"
+            );
+        }
+
+        // ==========================================
+        // 4. Authorization
+        // ==========================================
+
+        if (!userInfo) {
+            throw new AppError(
+                "Unauthorized",
+                401,
+                "UNAUTHORIZED"
+            );
+        }
+
+        const isSuperAdmin =
+            userInfo.role === "superadmin";
+
+        const isInstructor =
+            course.instructor?.toString() ===
+            userInfo.userId;
+
+        if (
+            !isSuperAdmin &&
+            !isInstructor
+        ) {
+            throw new AppError(
+                "User is not authorized to delete this chapter",
+                403,
+                "FORBIDDEN"
+            );
+        }
+
+        // ==========================================
+        // 5. Find quiz
+        // ==========================================
+
+        const quiz =
+            await QuizModel.findOne({
+                chapterId: chapter._id,
+            });
+
+        // ==========================================
+        // 6. Delete quiz questions
+        // ==========================================
+
+        if (quiz) {
+            await QuestionModel.deleteMany({
+                quizId: quiz._id,
+            });
+        }
+
+        // ==========================================
+        // 7. Delete quiz
+        // ==========================================
+
+        if (quiz) {
+            await QuizModel.deleteOne({
+                _id: quiz._id,
+            });
+        }
+
+        // ==========================================
+        // 8. Delete chapter
+        // ==========================================
+
+        await ChapterModel.deleteOne({
+            _id: chapter._id,
+        });
+
+        // ==========================================
+        // 9. Return result
+        // ==========================================
+
+        return {
+            chapterId: chapter._id,
+            message:
+                "Chapter deleted successfully",
+        };
+    } catch (error) {
+        // ==========================================
+        // Preserve AppError
+        // ==========================================
+
+        if (error instanceof AppError) {
+            throw error;
+        }
+
+        console.error(
+            "Delete chapter error:",
+            error
+        );
+
+        throw new AppError(
+            "Failed to delete chapter",
+            500,
+            "FAILED_DELETE_CHAPTER"
+        );
+    }
+};
 

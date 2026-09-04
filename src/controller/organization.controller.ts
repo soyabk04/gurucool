@@ -1,4 +1,4 @@
-import { createOrganizationService, createGroupService, getOraganizationConfig, getOrganizationUsersService, getOrganization, getGroup, getOrganizationDetailsService, editOrganizationService } from "../services/organization.service.js";
+import { createOrganizationService, createGroupService,deleteGroupService, getOraganizationConfig, getOrganizationUsersService, getOrganization, getGroup, getOrganizationDetailsService, editOrganizationService, updateGroupService, getGroupService } from "../services/organization.service.js";
 import { type Request, type Response, type NextFunction } from "express";
 import { AppError } from "../errors/AppError.js";
 
@@ -81,6 +81,66 @@ const createGroupController = async (req: Request, res: Response) => {
 
 };
 
+export const getGroupByIdController = async (
+    req: Request<{ groupId: string }>,
+    res: Response
+) => {
+    
+        const { groupId } = req.params;
+
+        const adminData = req.user!;
+
+        const result = await getGroupService(
+            groupId,
+            adminData
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: result.message,
+            data: result.data,
+        });
+
+};
+export const deleteGroupController = async (
+    req: Request<{ groupId: string }>,
+    res: Response
+) => {
+        const { groupId } = req.params;
+        const adminData = req.user!;
+        const result = await deleteGroupService(groupId, adminData);
+        return res.status(200).json(result);
+};
+export const updateGroupController = async (
+    req: Request<{ groupId: string }>,
+    res: Response
+) => {
+    try {
+        const { groupId } = req.params;
+
+        const {
+            groupData,
+            coordinator,
+        } = req.body;
+
+        const adminData = req.user!;
+
+        const result = await updateGroupService(
+            groupId,
+            groupData,
+            coordinator,
+            adminData
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Group updated successfully",
+            data: result.data,
+        });
+    } catch (error) {
+        throw error;
+    }
+};
 
 const getOrgThemeController = async (req: Request, res: Response) => {
         const domain = req.body.domain
