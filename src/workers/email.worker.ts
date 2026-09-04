@@ -5,18 +5,14 @@ import { sendWelcomeEmail ,sendForgetPasswordEmail,sendmail} from "../utils/send
 export const emailWorker = new Worker(
   "emailQueue",
   async (job) => {
-    const { user,password,organization } = job.data;
+    const { user, password, organization } = job.data;
     console.log(`Processing job ${job.id} for user ${user.email}`);
-  
-    await sendWelcomeEmail(
-      user,password,organization
-    );
+
+    await sendWelcomeEmail(user, password, organization);
 
     console.log(` Email sent to ${user.email}`);
   },
-  {
-    connection,
-  }
+  { connection }
 );
 
 
