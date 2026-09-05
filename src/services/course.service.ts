@@ -2553,3 +2553,281 @@ export const deleteChapter = async (
     }
 };
 
+export const getCoordinatorUserProgressService = async (
+  userInfo: {
+    userId: string;
+    role: string;
+  },
+  courseId: string,
+  search?: string
+) => {
+  if (userInfo.role !== "coordinator") {
+    const error = new Error(
+      "Only coordinators can access learner progress"
+    );
+
+    (error as any).statusCode = 403;
+
+    throw error;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    const error = new Error("Invalid course ID");
+
+    (error as any).statusCode = 400;
+
+    throw error;
+  }
+
+  const coordinator = await Usermodel.findById(userInfo.userId)
+    .select("_id groupId organizationId")
+    .lean();
+
+  if (!coordinator) {
+    const error = new Error("Coordinator not found");
+
+    (error as any).statusCode = 404;
+
+    throw error;
+  }
+
+  if (!coordinator.groupId) {
+    const error = new Error(
+      "Coordinator is not assigned to a group"
+    );
+
+    (error as any).statusCode = 400;
+
+    throw error;
+  }
+
+  const courseObjectId = new mongoose.Types.ObjectId(courseId);
+  const groupObjectId = new mongoose.Types.ObjectId(
+    coordinator.groupId.toString()
+  );
+
+  /*
+   * Make sure this course is actually assigned
+   * to the coordinator's group.
+   */
+  const groupCourse = await GroupCourse.findOne({
+    groupId: groupObjectId,
+    courseId: courseObjectId,
+    status: "active",
+  }).lean();
+
+  if (!groupCourse) {
+    const error = new Error(
+      "This course is not assigned to your group"
+    );
+
+    (error as any).statusCode = 403;
+
+    throw error;
+  }
+
+  /*
+   * Get the course.
+   */
+  const course = await CourseModel.findById(courseObjectId)
+    .select("_id title thumbnail")
+    .lean();
+
+  if (!course) {
+    const error = new Error("Course not found");
+
+    (error as any).statusCode = 404;
+
+    throw error;
+  }
+
+  /*
+   * Get total chapters for this course.
+   */
+  const totalChapters = await ChapterModel.countDocuments({
+    courseId: courseObjectId,
+  });
+
+  /*
+   * Get learners enrolled in this course
+   * under the coordinator's group.
+   */
+  const enrollmentFilter: any = {
+    courseId: courseObjectId,
+    groupId: groupObjectId,
+    status: {
+      $in: ["active", "completed"],
+    },
+  };
+
+  const enrollments = await EnrollmentModel.find(enrollmentFilter)
+    .select(
+      "_id userId courseId progress status completedAt"
+    )
+    .populate({
+      path: "userId",
+      select: "_id name email",
+    })
+    .lean();
+
+  /*
+   * If there are no learners, return immediately.
+   */
+  if (!enrollments.length) {
+    return [];
+  }
+
+  /*
+   * Extract user IDs.
+   */
+  const userIds = enrollments
+    .map((enrollment: any) => enrollment.userId?._id)
+    .filter(Boolean);
+
+  /*
+   * Get chapter completion counts.
+   */
+  const completedChapterStats =
+    await CourseProgressModel.aggregate([
+      {
+        $match: {
+          courseId: courseObjectId,
+          userId: {
+            $in: userIds,
+          },
+          completed: true,
+        },
+      },
+      {
+        $group: {
+          _id: "$userId",
+          completedChapters: {
+            $sum: 1,
+          },
+        },
+      },
+    ]);
+
+  /*
+   * Get last activity from CourseProgress.updatedAt.
+   */
+  const lastActivityStats =
+    await CourseProgressModel.aggregate([
+      {
+        $match: {
+          courseId: courseObjectId,
+          userId: {
+            $in: userIds,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$userId",
+          lastActivity: {
+            $max: "$updatedAt",
+          },
+        },
+      },
+    ]);
+
+  /*
+   * Convert aggregation results into maps
+   * for O(1) lookup.
+   */
+  const completedMap = new Map<string, number>();
+
+  completedChapterStats.forEach((item: any) => {
+    completedMap.set(
+      item._id.toString(),
+      item.completedChapters
+    );
+  });
+
+  const activityMap = new Map<string, Date>();
+
+  lastActivityStats.forEach((item: any) => {
+    activityMap.set(
+      item._id.toString(),
+      item.lastActivity
+    );
+  });
+
+  /*
+   * Format response.
+   */
+  const result = enrollments
+    .filter((enrollment: any) => enrollment.userId)
+    .map((enrollment: any) => {
+      const user = enrollment.userId;
+
+      const userId = user._id.toString();
+
+      const progress = Number(enrollment.progress ?? 0);
+
+      const completedChapters =
+        completedMap.get(userId) ?? 0;
+
+      const lastActivity =
+        activityMap.get(userId) ?? null;
+
+      let status:
+        | "completed"
+        | "in-progress"
+        | "not-started";
+
+      if (
+        enrollment.status === "completed" ||
+        progress >= 100
+      ) {
+        status = "completed";
+      } else if (progress > 0) {
+        status = "in-progress";
+      } else {
+        status = "not-started";
+      }
+
+      return {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+        },
+
+        progress,
+
+        completedChapters,
+
+        totalChapters,
+
+        lastActivity,
+
+        status,
+      };
+    });
+
+  /*
+   * Optional server-side search.
+   *
+   * Since user is populated above, filtering here
+   * is simple and sufficient for normal group sizes.
+   */
+  if (search) {
+    const searchValue = search.toLowerCase();
+
+    return result.filter((item) => {
+      const name =
+        item.user.name?.toLowerCase() ?? "";
+
+      const email =
+        item.user.email?.toLowerCase() ?? "";
+
+      return (
+        name.includes(searchValue) ||
+        email.includes(searchValue)
+      );
+    });
+  }
+
+  return result;
+};

@@ -9,6 +9,7 @@ import { createChapter, assignCourseToUsers, getMyCourses,getQuizQuestions,
          getCourses, getassignCourseToGroup,
          updateChapter,
          deleteChapter,
+         getCoordinatorUserProgressService,
          } from "../services/course.service.js";
 import { type Request, type Response, type NextFunction } from "express";
 
@@ -464,7 +465,10 @@ export const getCourseProgressController = async (
 
     const userId = req.user.userId.toString();
 
-    const { courseId } = req.params;
+    const { courseId: courseIdParam } = req.params;
+    const courseId = Array.isArray(courseIdParam)
+      ? courseIdParam[0]
+      : courseIdParam;
 
     // Validate courseId
     if (typeof courseId !== "string") {
@@ -525,4 +529,59 @@ export const deleteChapterController = async (
             data: result,
         });
 
+};
+
+export const getCoordinatorUserProgressController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const userInfo = req.user;
+
+    if (!userInfo) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const { courseId } = req.params;
+
+    if (!courseId || typeof courseId !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Course ID is required",
+      });
+    }
+
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : undefined;
+
+    const progress = await getCoordinatorUserProgressService(
+      {
+        userId: userInfo.userId,
+        role: userInfo.role,
+      },
+      courseId,
+      search
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: progress,
+    });
+  } catch (error: any) {
+    console.error(
+      "getCoordinatorUserProgressController error:",
+      error
+    );
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message:
+        error.message || "Failed to fetch coordinator user progress",
+    });
+  }
 };

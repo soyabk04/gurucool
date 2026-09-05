@@ -14,6 +14,7 @@ import { organization } from "../types/organization.type.js";
 import { User } from "../types/user.type.js";
 import { userInfo } from "node:os";
 import bcrypt from "bcrypt";
+import { sendForgetPasswordEmailQueue } from "../jobs/email.jobs.js";
 
 
 
@@ -471,8 +472,7 @@ export const forgetPasswordLink = async (email: string) => {
   }
 
   const resetLink = `https://${user.organization.domain}/change-password?token=${resetToken}`;
-  await sendForgetPasswordEmail( user, resetLink );
-  console.log(`Password reset link sent to ${user.email}: ${resetLink}`);
+  await sendForgetPasswordEmailQueue({ email: user.email, resetLink });
   return {
     message: "Password reset link has been sent to your email." // In a real application, you wouldn't return this in the response.
   };

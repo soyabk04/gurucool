@@ -6,7 +6,7 @@ export async function sendWelcomeEmail(data: {
 }) {
     await emailQueue.add("welcome-email", data);
 }
-export async function sendForgetPasswordEmail(data: {
+export async function sendForgetPasswordEmailQueue(data: {
     email: string;
     resetLink: string;
 }) {
