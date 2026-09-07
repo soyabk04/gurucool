@@ -29,7 +29,7 @@ app.use(
 
         const hostname = new URL(origin).hostname.toLowerCase();
                 const domains=await getDomains()
-                domains.data.push("soyab-dev.in","localhost","https://gurucool-frontend-git-main-soyabs-projects-e9a605b5.vercel.app/")
+                domains.data.push("soyab-dev.in","localhost","gurucool-frontend-git-main-soyabs-projects-e9a605b5.vercel.app")
                 const allowedOrigins = (domains).data.map((d) =>
           d.toLowerCase().trim()
        );;
