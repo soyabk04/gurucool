@@ -298,7 +298,7 @@ export const generateCertificate = async ({
     // Name is horizontally centered.
     //
 
-    const nameTop = 95;
+    const nameTop = 135;
 
     const fontSize = 28;
 
@@ -381,7 +381,7 @@ export const generateCertificate = async ({
         {
             x: 170,
 
-            y: 108,
+            y: 182,
 
             size: 16,
 
