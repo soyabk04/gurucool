@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import { connection } from "../config/redis.config.js";
-import { sendWelcomeEmail ,sendForgetPasswordEmail,sendmail} from "../utils/sendemail.js"; // Change this path
+import { sendWelcomeEmail ,sendForgetPasswordEmail,sendChapterUnlockedEmail} from "../utils/sendemail.js"; // Change this path
 
 export const emailWorker = new Worker(
   "emailQueue",
@@ -19,27 +19,39 @@ export const emailWorker = new Worker(
 export const NotificationWorker = new Worker(
   "email",
   async (job) => {
-    const {
-      recipient,
-      subject,
-      message,
-      isHtml = false,
-    } = job.data;
 
-    console.log(`📧 Sending email to ${recipient}`);
+    switch (job.name) {
 
-    const result = await sendmail(
-      subject,
-      message,
-      recipient,
-      isHtml
-    );
+      case "chapter-unlocked": {
+        const {
+          recipient,
+          name,
+          chapterTitle,
+          courseName,
+          domain,
+        } = job.data;
 
-    return result;
+        await sendChapterUnlockedEmail(
+          {
+            name,
+            email: recipient,
+          },
+          {
+            title: chapterTitle,
+            courseName,
+          },
+          domain
+        );
+
+        break;
+      }
+
+      default:
+        throw new Error(`Unknown email job: ${job.name}`);
+    }
   },
   {
     connection,
-
     concurrency: 5,
   }
 );
@@ -63,6 +75,7 @@ export const forgotPasswordWorker = new Worker(
   "passwordResetQueue",
   async (job) => {
     const { user,resetLink } = job.data;
+    console.log(resetLink)
     console.log(`Processing job ${job.id} for user ${user.email}`);
   
     await sendForgetPasswordEmail(

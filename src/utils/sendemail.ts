@@ -304,16 +304,173 @@ let forgetPasswordTemplate = `<!DOCTYPE html>
 </html>`
 
 
-export const sendForgetPasswordEmail=async (user:any,resetLink:string)=>{
-  
+export const sendForgetPasswordEmail = async (
+  user: any,
+  resetLink: string
+) => {
+
   const emailBody = forgetPasswordTemplate
-    .replace("{{resetLink}}", resetLink)
-  .replace("{{name}}", user.name)
-  .replace("{{email}}", user.email)
+    .replace(/{{resetLink}}/g, resetLink)
+    .replace(/{{name}}/g, user.name)
+    .replace(/{{email}}/g, user.email);
 
+  const subject = "Reset Your Password";
 
-  const subject="Reset Your Password";
-  const message=emailBody;
+  await sendmail(
+    subject,
+    emailBody,
+    user.email,
+    true
+  );
+};
 
-  await sendmail(subject, message, user.email, true);
-}
+export const sendChapterUnlockedEmail = async (
+  user: {
+    name: string;
+    email: string;
+  },
+  chapter: {
+    title: string;
+    courseName: string;
+  },
+  domain: string
+) => {
+  const chapterLink =
+    `https://${domain}/courses`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+</head>
+
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+
+        <table
+          width="600"
+          cellpadding="0"
+          cellspacing="0"
+          style="background:#ffffff;border-radius:12px;overflow:hidden;"
+        >
+
+          <tr>
+            <td
+              align="center"
+              style="background:#2563eb;padding:30px;color:#ffffff;"
+            >
+              <h1 style="margin:0;">GuruCool</h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px;">
+
+              <h2 style="margin-top:0;color:#111827;">
+                A new chapter is unlocked 🎉
+              </h2>
+
+              <p style="font-size:16px;color:#4b5563;line-height:1.6;">
+                Hi ${user.name},
+              </p>
+
+              <p style="font-size:16px;color:#4b5563;line-height:1.6;">
+                A new chapter in your course is now available.
+              </p>
+
+              <table
+                width="100%"
+                cellpadding="0"
+                cellspacing="0"
+                style="
+                  margin:25px 0;
+                  border:1px solid #e5e7eb;
+                  border-radius:10px;
+                  padding:20px;
+                "
+              >
+                <tr>
+                  <td>
+
+                    <p style="margin:0 0 8px;color:#6b7280;">
+                      Course
+                    </p>
+
+                    <h3 style="margin:0 0 18px;color:#111827;">
+                      ${chapter.courseName}
+                    </h3>
+
+                    <p style="margin:0;color:#6b7280;">
+                      Chapter
+                    </p>
+
+                    <h3 style="margin:8px 0 0;color:#2563eb;">
+                      ${chapter.title}
+                    </h3>
+
+                  </td>
+                </tr>
+              </table>
+
+              <div style="text-align:center;margin:35px 0;">
+
+                <a
+                  href="${chapterLink}"
+                  target="_blank"
+                  style="
+                    display:inline-block;
+                    background:#2563eb;
+                    color:#ffffff;
+                    padding:14px 30px;
+                    text-decoration:none;
+                    border-radius:8px;
+                    font-weight:bold;
+                  "
+                >
+                  Start Learning
+                </a>
+
+              </div>
+
+              <p style="font-size:14px;color:#6b7280;">
+                Log in to GuruCool to start learning the newly unlocked chapter.
+              </p>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td
+              align="center"
+              style="
+                background:#f9fafb;
+                padding:20px;
+                font-size:13px;
+                color:#9ca3af;
+              "
+            >
+              © 2026 GuruCool. All rights reserved.
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+`;
+
+  await sendmail(
+    `🎉 ${chapter.title} is now unlocked!`,
+    html,
+    user.email,
+    true
+  );
+};

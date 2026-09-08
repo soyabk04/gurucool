@@ -7,3 +7,7 @@ export const emailQueue = new Queue("emailQueue", {
 export const passwordResetQueue = new Queue("passwordResetQueue", {
   connection,
 });
+
+export const notificationQueue = new Queue("email", {
+  connection,
+});

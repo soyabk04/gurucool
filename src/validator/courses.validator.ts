@@ -102,7 +102,6 @@ export const validate =
   (schema: z.ZodTypeAny, key: string) =>
   (req: Request, res: Response, next: NextFunction) => {
     try {
-      
       const payload = req.body[key];
       
       if (!payload) {
@@ -111,6 +110,7 @@ export const validate =
           message: `${key} is required`,
         });
       }
+    
 
       const parsed =
         typeof payload === "string"

@@ -10,6 +10,7 @@ import { createChapter, assignCourseToUsers, getMyCourses,getQuizQuestions,
          updateChapter,
          deleteChapter,
          getCoordinatorUserProgressService,
+         deleteCourse,
          } from "../services/course.service.js";
 import { type Request, type Response, type NextFunction } from "express";
 
@@ -18,6 +19,7 @@ export const createCourseController = async (
     res: Response,
     next: NextFunction
 ) => {
+        
         const courseData = req.body.course;
         const user = req.user!;
 
@@ -585,3 +587,14 @@ export const getCoordinatorUserProgressController = async (
     });
   }
 };
+
+export const courseDeleteController=(req:Request,res:Response)=>{
+  const courseId = Array.isArray(req.params.courseId)
+    ? req.params.courseId[0]
+    : req.params.courseId;
+  const userInfo=req.user!;
+
+  const response=deleteCourse(userInfo,courseId);
+
+  res.send(response)
+}

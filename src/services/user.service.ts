@@ -437,10 +437,9 @@ export const checkLogin = (accesstoken: string) => {
 }
 
 export const forgetPasswordLink = async (email: string) => {
-
   const user = await Usermodel.findOne({ email })
-    .populate<{ organization: organization }>("organization").lean();
-
+    .populate<{ organization: organization }>("organization")
+    .lean();
 
   if (!user) {
     throw new AppError(
@@ -450,11 +449,6 @@ export const forgetPasswordLink = async (email: string) => {
     );
   }
 
-  const resetToken = jwt.sign(
-    { userId: user._id },
-    ATJWTKEY,
-    { expiresIn: "1h" }
-  );
   if (!user.organization) {
     throw new AppError(
       "Organization not found for the user",
@@ -462,7 +456,7 @@ export const forgetPasswordLink = async (email: string) => {
       "ORGANIZATION_NOT_FOUND"
     );
   }
-  const domain = user.organization.domain;
+
   if (!user.organization.domain) {
     throw new AppError(
       "Organization domain not found",
@@ -471,12 +465,24 @@ export const forgetPasswordLink = async (email: string) => {
     );
   }
 
-  const resetLink = `https://${user.organization.domain}/change-password?token=${resetToken}`;
-  await sendForgetPasswordEmailQueue({ email: user.email, resetLink });
+  const resetToken = jwt.sign(
+    { userId: user._id },
+    ATJWTKEY,
+    { expiresIn: "1h" }
+  );
+
+  const resetLink =
+    `https://${user.organization.domain}/change-password?token=${resetToken}`;
+
+  await sendForgetPasswordEmailQueue({
+    user,
+    resetLink,
+  });
+
   return {
-    message: "Password reset link has been sent to your email." // In a real application, you wouldn't return this in the response.
+    message: "Password reset link has been sent to your email."
   };
-}
+};
 
 
 

@@ -33,7 +33,6 @@ export const createCourse = async (
         "userInfo.role", 
         userInfo.role 
     ); 
- 
     if (!instructor) { 
         throw new AppError( 
             "Instructor not found.", 
@@ -93,7 +92,6 @@ export const createCourse = async (
     // ========================================== 
     // 4. Upload certificate template 
     // ========================================== 
- 
     if (certTemplate) { 
  
         // Optional validation 
@@ -2831,3 +2829,36 @@ export const getCoordinatorUserProgressService = async (
 
   return result;
 };
+
+export const deleteCourse=async (userInfo:{userId:string,role:string},courseId:string)=>{
+    const instructor=await Usermodel.findById(userInfo.userId)
+    if (!instructor){
+        throw new AppError(
+            'user not found',
+            404,
+            'USER_NOT_FOUND'
+        )
+    }
+    const course=await CourseModel.findById(courseId);
+    if (!course){
+            throw new AppError(
+            'course not found',
+            404,
+            'COURSE_NOT_FOUND'
+        )
+    }
+    if(course.instructor!=userInfo.userId){
+            throw new AppError(
+            'user can not delete this course ',
+            401,
+            'UNAUTHORIZED'
+        )
+    
+    }
+    await CourseModel.deleteOne({
+        '_id':courseId
+    })
+    return {
+        success:true
+    }
+}

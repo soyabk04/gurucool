@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createChapterController,getCoursesController,updateChapterProgressController,getCourseProgressController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController, getQuestionsController, quizSubmitController, getMyCertificatesController, updateChapterController, deleteChapterController, getCoordinatorUserProgressController } from "../controller/course.controller.js";
+import { createChapterController,getCoursesController,updateChapterProgressController,getCourseProgressController, getChapterController,getOrganizationCoursesController,getEnrollGrpController,getEnrollOrgController,getMyCoursesController,createCourseController,createQuestionController,createQuizController,assignCourseToUsersController, enrollGroupController, getCourseController, enrollOrgController, getQuestionsController, quizSubmitController, getMyCertificatesController, updateChapterController, deleteChapterController, getCoordinatorUserProgressController, courseDeleteController } from "../controller/course.controller.js";
 import { authorizeRoles } from "../middleware/Authorization.middleware.js";
 import { authMiddleware } from "../middleware/authentication.middleware.js";
 import { Assignmentvalidator, chapterValidator, courseValidator, questionValidator, quizValidator } from "../validator/courses.validator.js";
@@ -11,7 +11,7 @@ import { getMyCertificatesService } from "../services/course.service.js";
 const courseRouter = Router();
 
 courseRouter.post(
-    "/",
+    "/create",
 
     createRateLimiter(
         10,
@@ -37,7 +37,7 @@ courseRouter.post(
         },
     ]),
 
-    courseValidator,
+    asyncHandler(courseValidator),
 
     asyncHandler(createCourseController)
 );
@@ -188,5 +188,13 @@ courseRouter.get(
   authorizeRoles("coordinator"),
   asyncHandler(getCoordinatorUserProgressController)
 );
+
+courseRouter.delete( 
+    '/delete/:courseId',
+    authMiddleware,
+    authorizeRoles('admin','superadmin'),
+    asyncHandler(courseDeleteController)
+
+)
 
 export default courseRouter;
