@@ -33,8 +33,9 @@ app.use(
 
         const hostname = new URL(origin).hostname.toLowerCase();
                 let allowedDomains= await getDomainsRedis(domains.data);
-                allowedDomains?.data.push("soyab-dev.in","localhost")
-                const allowedOrigins = (allowedDomains).data.map((d:any) =>
+                console.log(typeof allowedDomains)
+                allowedDomains?.push("soyab-dev.in","localhost")
+                const allowedOrigins = (allowedDomains).map((d:any) =>
           d.toLowerCase().trim()
        );;
             
