@@ -42,6 +42,7 @@ export async function addDomainToAllowedDomain(domain:string){
     
     allDomains.push(domain);
     await connection.sadd('allowedDomains', allDomains);
+    await seedAllowedDomains()
 }
 
 export async function deleteDomainFromAllowedDomain(domain:string){
@@ -55,4 +56,5 @@ export async function deleteDomainFromAllowedDomain(domain:string){
       allDomains.splice(domainIndex, 1);
     }
     await connection.sadd('allowedDomains', allDomains);
+    await seedAllowedDomains()
 }
