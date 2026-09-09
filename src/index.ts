@@ -33,7 +33,7 @@ app.use(
 
         const hostname = new URL(origin).hostname.toLowerCase();
                 let allowedDomains= await getDomainsRedis(domains.data);
-                allowedDomains?.data.push("soyab-dev.in","localhost","gurucool-frontend-git-main-soyabs-projects-e9a605b5.vercel.app")
+                allowedDomains?.data.push("soyab-dev.in","localhost")
                 const allowedOrigins = (allowedDomains).data.map((d:any) =>
           d.toLowerCase().trim()
        );;
