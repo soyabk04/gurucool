@@ -5,21 +5,23 @@ export async function getDomainsRedis(
 ): Promise<string[]> {
   let allDomains = await connection.get('allowedDomains');
 
-  if (!allDomains) {
+  if(allDomains){
+    await connection.del('allowedDomains')
+  }
     await connection.set(
       'allowedDomains',
       JSON.stringify(allowedDomains)
     );
 
     allDomains = await connection.get('allowedDomains');
-  }
-
+  
+  
   if (!allDomains) {
     throw new Error('Unable to retrieve allowed domains from Redis');
   }
 
   const domains: string[] = JSON.parse(allDomains);
-
+  console.log(domains)
   return domains;
 }
 

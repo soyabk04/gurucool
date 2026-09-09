@@ -21,30 +21,33 @@ const app = express();
 app.set("trust proxy", 1);
 const domains=await getDomains()
 
-
 app.use(
   cors({
-    
-    async origin(origin,  callback) {
+    async origin(origin, callback) {
       try {
         if (!origin) {
           return callback(null, true);
         }
 
         const hostname = new URL(origin).hostname.toLowerCase();
-                let allowedDomains= await getDomainsRedis(domains.data);
-                console.log(typeof allowedDomains)
-                allowedDomains?.push("soyab-dev.in","localhost")
-                const allowedOrigins = (allowedDomains).map((d:any) =>
+
+        const allowedDomains = await getDomainsRedis(domains.data);
+
+        console.log(allowedDomains);
+        console.log(Array.isArray(allowedDomains)); // true
+
+        allowedDomains.push("soyab-dev.in", "localhost");
+
+        const allowedOrigins = allowedDomains.map((d: string) =>
           d.toLowerCase().trim()
-       );;
-            
+        );
+
         if (allowedOrigins.includes(hostname)) {
           return callback(null, true);
         }
 
         callback(new Error("Not allowed by CORS"));
-      }catch (err) {
+      } catch (err) {
         callback(err as Error);
       }
     },
