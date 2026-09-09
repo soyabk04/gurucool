@@ -985,7 +985,13 @@ const editOrganizationService = async (
         }
 
         await organization.save();
-        await addDomainToAllowedDomain(organization.domain)
+       try {
+    await addDomainToAllowedDomain(organization.domain);
+} catch (redisErr) {
+    console.error(`[CORS] Failed to sync domain "${organization.domain}" to Redis after org creation:`, redisErr);
+    // Don't throw — org creation already succeeded. This will self-heal
+    // on next seedAllowedDomains() run, but log it so it's not invisible.
+}
 
         return {
             success: true,

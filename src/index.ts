@@ -12,15 +12,13 @@ import { analyticsRouter } from './routes/analytics.routes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
 import {getDomains} from './services/organization.service.js'
 import { startChapterUnlockCron } from "./cron/chapterUnlock.cron.js";
-import { getDomainsRedis } from './utils/domainCors.js';
+import { seedAllowedDomains ,getAllowedDomains} from './utils/domainCors.js';
 dotenv.config();
 await dbConnect();
-
-
 const app = express();
-app.set("trust proxy", 1);
-const domains=await getDomains()
+app.set("trust proxy", 1)
 
+await seedAllowedDomains();
 app.use(
   cors({
     async origin(origin, callback) {
@@ -30,13 +28,9 @@ app.use(
         }
 
         const hostname = new URL(origin).hostname.toLowerCase();
+        
 
-        const allowedDomains = await getDomainsRedis(domains.data);
-
-        console.log(allowedDomains);
-        console.log(Array.isArray(allowedDomains)); // true
-
-        allowedDomains.push("soyab-dev.in", "localhost");
+        const allowedDomains = await getAllowedDomains();
 
         const allowedOrigins = allowedDomains.map((d: string) =>
           d.toLowerCase().trim()
