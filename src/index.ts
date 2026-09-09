@@ -12,12 +12,16 @@ import { analyticsRouter } from './routes/analytics.routes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
 import {getDomains} from './services/organization.service.js'
 import { startChapterUnlockCron } from "./cron/chapterUnlock.cron.js";
+import { getDomainsRedis } from './utils/domainCors.js';
 dotenv.config();
 await dbConnect();
 
 
 const app = express();
 app.set("trust proxy", 1);
+const domains=await getDomains()
+
+
 app.use(
   cors({
     
@@ -28,9 +32,9 @@ app.use(
         }
 
         const hostname = new URL(origin).hostname.toLowerCase();
-                const domains=await getDomains()
-                domains.data.push("soyab-dev.in","localhost","gurucool-frontend-git-main-soyabs-projects-e9a605b5.vercel.app")
-                const allowedOrigins = (domains).data.map((d) =>
+                let allowedDomains= await getDomainsRedis(domains.data);
+                allowedDomains?.data.push("soyab-dev.in","localhost","gurucool-frontend-git-main-soyabs-projects-e9a605b5.vercel.app")
+                const allowedOrigins = (allowedDomains).data.map((d:any) =>
           d.toLowerCase().trim()
        );;
             

@@ -12,6 +12,7 @@ import { R2Service } from "../utils/cloudflare.js";
 import { getLogo } from "../utils/getVideoUrl.js";
 import mongoose from "mongoose";
 import { assignCourseToOrganization } from "../services/course.service.js";
+import { addDomainToAllowedDomain } from "../utils/domainCors.js";
 
 const createOrganizationService = async (
     orgData: organization,
@@ -103,7 +104,7 @@ const createOrganizationService = async (
         await organization.save({ session });
 
         await session.commitTransaction();
-
+        await addDomainToAllowedDomain(organization.domain)
         return {
             success: true,
             message: "Organization created successfully",
@@ -984,6 +985,8 @@ const editOrganizationService = async (
         }
 
         await organization.save();
+        await addDomainToAllowedDomain(organization.domain)
+
         return {
             success: true,
             message: "Organization updated successfully",
